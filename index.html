@@ -1,0 +1,1781 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Feyline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Alegreya:ital,wght@0,400;0,500;1,400&family=Alegreya+Sans+SC:wght@400;500;700&display=swap">
+<style>
+body { margin: 0; }
+img { max-width: 100%; }
+/* Layout: night-map first. A wide living map on the left, a reading panel on the right like a scholar's margin notes. Single dark world by choice. */
+:root {
+  --ink: #0e1520;        /* night sky over the map */
+  --ink-2: #151f2d;      /* panel ground */
+  --ink-3: #1d2a3b;      /* raised controls */
+  --vellum: #e9dfc8;     /* text, like lamp-lit parchment */
+  --vellum-dim: #a7a594; /* secondary text, warm grey */
+  --rule: #2c3a4d;       /* hairlines */
+  --fey: #f0c454;        /* the Feyline; JS retints this per season */
+  --font-display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
+  --font-body: "Alegreya", "Iowan Old Style", Georgia, serif;
+  --font-label: "Alegreya Sans SC", "Gill Sans", "Trebuchet MS", sans-serif;
+  color-scheme: dark;
+}
+html, body { height: auto; }
+body { background: var(--ink); color: var(--vellum); font-family: var(--font-body); font-size: 17px; line-height: 1.5; }
+.wrap { max-width: 1280px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 40px; display: grid; gap: 22px; }
+
+.top { display: grid; gap: 6px; }
+.eyebrow { margin: 0; font-family: var(--font-label); letter-spacing: .14em; font-size: .82rem; color: var(--vellum-dim); }
+h1 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(2.4rem, 6vw, 4rem); line-height: 1; text-wrap: balance; color: var(--vellum); }
+h1 .glow { color: var(--fey); text-shadow: 0 0 22px color-mix(in srgb, var(--fey) 55%, transparent); transition: color 1.2s, text-shadow 1.2s; }
+.lede { margin: 4px 0 0; max-width: 62ch; color: var(--vellum-dim); }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 22px; align-items: start; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+.mapcol { display: grid; gap: 12px; min-width: 0; }
+.map { position: relative; width: 100%; max-width: 100%; aspect-ratio: 2400 / 1825; border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; background: var(--ink); }
+.map canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.map.editing { outline: 2px dashed color-mix(in srgb, var(--fey) 70%, transparent); outline-offset: -6px; }
+.maptag { position: absolute; left: 10px; bottom: 10px; font-family: var(--font-label); font-size: .74rem; letter-spacing: .08em; color: var(--vellum-dim); background: color-mix(in srgb, var(--ink) 80%, transparent); padding: 3px 8px; border-radius: 3px; pointer-events: none; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 14px 32px; align-items: flex-start; }
+.group { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.glabel { font-family: var(--font-label); font-size: .76rem; letter-spacing: .14em; color: var(--vellum-dim); }
+.gbtns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.setup { flex-basis: 100%; border-top: 1px solid var(--rule); padding-top: 10px; }
+.setup summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; border-radius: 3px; }
+.setup summary::-webkit-details-marker { display: none; }
+.setup summary::before { content: "\25B8"; font-size: .7rem; transition: transform .2s; }
+.setup[open] summary::before { transform: rotate(90deg); }
+.setup summary:hover { color: var(--vellum); }
+.setup summary:focus-visible { outline: 2px solid var(--fey); outline-offset: 3px; }
+.sel { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-label); font-size: .86rem; letter-spacing: .05em; color: var(--vellum-dim); }
+.sel select { font-family: var(--font-label); font-size: .86rem; letter-spacing: .03em; color: var(--vellum); background: var(--ink-3); border: 1px solid var(--rule); border-radius: 3px; padding: 5px 8px; cursor: pointer; }
+.sel select:focus-visible { outline: 2px solid var(--fey); outline-offset: 2px; }
+button.quiet { background: transparent; color: var(--vellum-dim); }
+button.quiet:hover { color: var(--vellum); }
+.spotform { display: grid; gap: 10px; }
+.spotform label { display: grid; gap: 4px; font-family: var(--font-label); font-size: .8rem; letter-spacing: .06em; color: var(--vellum-dim); }
+.spotform input:not([type=checkbox]), .spotform textarea, .spotform select { font-family: var(--font-body); font-size: .95rem; letter-spacing: 0; color: var(--vellum); background: var(--ink-3); border: 1px solid var(--rule); border-radius: 3px; padding: 6px 8px; width: 100%; }
+.spotform textarea { resize: vertical; line-height: 1.4; }
+.spotform :focus-visible { outline: 2px solid var(--fey); outline-offset: 1px; }
+.sfrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.spotform .chk { display: flex; align-items: center; gap: 8px; font-size: .9rem; color: var(--vellum); letter-spacing: .02em; }
+.spotform .chk input { width: 16px; height: 16px; accent-color: var(--fey); }
+.sfbtns { display: flex; justify-content: space-between; gap: 8px; }
+.rank li button.off .rn { color: var(--vellum-dim); text-decoration: line-through; }
+.chips, .tools { display: flex; flex-wrap: wrap; gap: 6px; }
+button, .filebtn { font-family: var(--font-label); font-size: .86rem; letter-spacing: .05em; color: var(--vellum); background: var(--ink-3); border: 1px solid var(--rule); border-radius: 3px; padding: 6px 11px; cursor: pointer; line-height: 1.2; }
+button:hover, .filebtn:hover { border-color: var(--vellum-dim); }
+button:focus-visible, .filebtn:focus-within { outline: 2px solid var(--fey); outline-offset: 2px; }
+.chips button[aria-checked="true"] { background: color-mix(in srgb, var(--fey) 22%, var(--ink-3)); border-color: var(--fey); color: var(--vellum); }
+.tools button[aria-pressed="true"] { border-color: var(--fey); color: var(--fey); }
+.filebtn input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.filebtn { position: relative; display: inline-block; }
+.hint { margin: 0; font-size: .92rem; color: var(--vellum-dim); min-height: 1.4em; }
+#posOut { width: 100%; min-height: 120px; background: var(--ink-2); color: var(--vellum); border: 1px solid var(--rule); border-radius: 3px; font: 13px/1.4 ui-monospace, Menlo, Consolas, monospace; padding: 10px; }
+
+.panel { display: grid; gap: 18px; background: var(--ink-2); border: 1px solid var(--rule); border-radius: 4px; padding: 18px; min-width: 0; }
+.panel h2, .panel h3 { margin: 0; font-family: var(--font-label); font-weight: 500; font-size: .8rem; letter-spacing: .14em; color: var(--vellum-dim); }
+.season { display: grid; gap: 6px; padding-bottom: 16px; border-bottom: 1px solid var(--rule); }
+.season .name { font-family: var(--font-display); font-size: 2rem; line-height: 1.05; color: var(--fey); transition: color 1.2s; }
+.season .boon { margin: 0; }
+.season .meta { margin: 0; font-size: .92rem; color: var(--vellum-dim); font-variant-numeric: tabular-nums; }
+.dial { height: 4px; background: var(--rule); border-radius: 2px; overflow: hidden; }
+.dial span { display: block; height: 100%; background: var(--fey); transition: width .6s, background 1.2s; }
+
+.detail { display: grid; gap: 6px; padding-bottom: 16px; border-bottom: 1px solid var(--rule); }
+.detail .dname { font-family: var(--font-display); font-size: 1.45rem; line-height: 1.1; }
+.detail p { margin: 0; }
+.detail .kind { font-family: var(--font-label); font-size: .8rem; letter-spacing: .08em; color: var(--vellum-dim); }
+.detail .favour { font-size: .92rem; color: var(--vellum-dim); }
+.detail .favour b { color: var(--fey); font-weight: 500; }
+
+.rank { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.rank li button { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 84px 34px; gap: 10px; align-items: center; background: transparent; border: 1px solid transparent; padding: 5px 6px; text-align: left; font-family: var(--font-body); font-size: .95rem; letter-spacing: 0; }
+.rank li button:hover { background: var(--ink-3); border-color: var(--rule); }
+.rank li button[aria-current="true"] { background: var(--ink-3); border-color: var(--fey); }
+.rank .rn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank .bar { height: 5px; background: var(--rule); border-radius: 3px; overflow: hidden; }
+.rank .bar span { display: block; height: 100%; background: var(--fey); transition: background 1.2s; }
+.rank .pct { font-family: var(--font-label); font-size: .82rem; color: var(--vellum-dim); text-align: right; font-variant-numeric: tabular-nums; }
+
+footer { font-size: .88rem; color: var(--vellum-dim); border-top: 1px solid var(--rule); padding-top: 14px; }
+footer a { color: var(--vellum); }
+
+.probe { display: grid; gap: 6px; padding-bottom: 16px; border-bottom: 1px solid var(--rule); }
+.probe p { margin: 0; }
+.probe-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ghost { background: transparent; padding: 2px 8px; font-size: .8rem; }
+.pread { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.pval { font-family: var(--font-display); font-size: 2.6rem; line-height: 1; color: var(--fey); font-variant-numeric: tabular-nums; transition: color 1.2s; }
+.pof { font-family: var(--font-label); color: var(--vellum-dim); font-size: .9rem; }
+.plvl { font-family: var(--font-label); letter-spacing: .1em; font-size: .9rem; color: var(--vellum); border: 1px solid var(--fey); border-radius: 3px; padding: 1px 8px; margin-left: auto; }
+#pSpark { width: 100%; height: 44px; display: block; }
+.glimpse { display: grid; gap: 6px; padding-bottom: 16px; border-bottom: 1px solid var(--rule); }
+.glimpse p { margin: 0; }
+.glist { margin: 0; padding: 0 0 0 1.1em; display: grid; gap: 2px; color: var(--vellum); }
+.glist li::marker { color: var(--fey); }
+.pmod { display: flex; align-items: baseline; gap: 8px; }
+.pmodv { font-family: var(--font-display); font-size: 1.9rem; line-height: 1; color: var(--vellum); font-variant-numeric: tabular-nums; }
+.pmod span:last-child { color: var(--vellum-dim); font-size: .95rem; }
+.legend { list-style: none; margin: 2px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+.legend li { display: grid; gap: 1px; text-align: center; padding: 4px 2px; border: 1px solid var(--rule); border-radius: 3px; font-family: var(--font-label); font-size: .72rem; letter-spacing: .04em; color: var(--vellum-dim); }
+.legend li b { font-weight: 500; font-size: .9rem; color: var(--vellum); font-variant-numeric: tabular-nums; }
+.legend li.on { border-color: var(--fey); background: color-mix(in srgb, var(--fey) 16%, transparent); color: var(--vellum); }
+.pmeta { font-size: .9rem; color: var(--vellum-dim); }
+[hidden] { display: none !important; }
+.cset { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cset select { font-family: var(--font-label); font-size: .86rem; background: var(--ink-3); color: var(--vellum); border: 1px solid var(--rule); border-radius: 3px; padding: 5px 6px; }
+#cDay { width: 3.6em; } #cYear { width: 4.6em; }
+.cyear { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-label); font-size: .86rem; color: var(--vellum-dim); }
+.cset input, .cset select { font-variant-numeric: tabular-nums; }
+.cset :disabled { opacity: .35; }
+.season .month { margin: 0; font-size: .92rem; color: var(--vellum-dim); }
+.season .month b { color: var(--vellum); font-weight: 500; }
+.clockbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; background: var(--ink-2); border: 1px solid var(--rule); border-radius: 4px; padding: 10px 12px; }
+.cmode { display: flex; gap: 4px; }
+.cmode button[aria-checked="true"] { background: color-mix(in srgb, var(--fey) 22%, var(--ink-3)); border-color: var(--fey); }
+.cnow { display: grid; gap: 2px; margin-right: auto; }
+.cdate { font-family: var(--font-label); font-size: .8rem; letter-spacing: .08em; color: var(--vellum-dim); }
+.ctime { font-family: var(--font-display); font-size: 1.6rem; line-height: 1; color: var(--vellum); font-variant-numeric: tabular-nums; }
+.cctl { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cctl input, .scale input, .cset input { font-family: var(--font-label); font-size: .86rem; background: var(--ink-3); color: var(--vellum); border: 1px solid var(--rule); border-radius: 3px; padding: 5px 8px; }
+.cctl input:focus-visible, .scale input:focus-visible { outline: 2px solid var(--fey); outline-offset: 1px; }
+#cPlay[aria-pressed="true"] { border-color: var(--fey); color: var(--fey); }
+.party, .travel { display: grid; gap: 6px; padding-bottom: 16px; border-bottom: 1px solid var(--rule); }
+.party p, .travel p { margin: 0; }
+.ploc { font-family: var(--font-display); font-size: 1.25rem; line-height: 1.15; }
+.tbtns { display: flex; gap: 4px; }
+.scale { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: .9rem; color: var(--vellum-dim); }
+.scale input { width: 4.5em; }
+.tsum { font-size: .95rem; }
+.tlog { display: grid; gap: 10px; max-height: 380px; overflow: auto; padding-right: 2px; }
+.tday { display: grid; gap: 1px; }
+.tdh { font-family: var(--font-label); font-size: .78rem; letter-spacing: .1em; color: var(--vellum-dim); padding: 0 6px 2px; }
+.trow { display: grid; grid-template-columns: 3em minmax(0, 1fr) auto; gap: 8px; align-items: center; text-align: left; background: transparent; border: 1px solid transparent; padding: 4px 6px; font-family: var(--font-body); font-size: .92rem; letter-spacing: 0; }
+.trow:hover { background: var(--ink-3); border-color: var(--rule); }
+.tt { font-family: var(--font-label); color: var(--vellum-dim); font-variant-numeric: tabular-nums; }
+.tp { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp i { font-style: normal; color: var(--vellum-dim); }
+.tp b { color: var(--fey); font-weight: 400; }
+.tl { font-family: var(--font-label); font-size: .78rem; padding: 1px 6px; border-radius: 3px; border: 1px solid var(--rule); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tl.l0 { color: var(--vellum-dim); }
+.tl.l3, .tl.l4 { border-color: var(--fey); color: var(--fey); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">The Earlsdale Compendium</p>
+    <h1>The <span class="glow">Feyline</span></h1>
+    <p class="lede" id="lede">The magic left behind when Mada fell at the end of the Second Age. It ebbs and flows across Earlsdale, gathers at old ruins and landmarks, and shifts with the seasons. Readings follow the clock above the map, dated in the Turning: real time, or your campaign's own date.</p>
+  </header>
+
+  <main class="grid">
+    <section class="mapcol" aria-label="Map of Feyline currents">
+      <div class="clockbar">
+        <div class="cmode" role="radiogroup" aria-label="Clock">
+          <button type="button" role="radio" id="cReal">Real time</button>
+          <button type="button" role="radio" id="cCamp">Campaign</button>
+        </div>
+        <div class="cnow"><span class="cdate" id="cDate"></span><span class="ctime" id="cTime"></span></div>
+        <div class="cctl" id="cCtl">
+          <span class="cset">
+            <input type="number" id="cDay" min="1" max="30" aria-label="Day of the month">
+            <select id="cMonth" aria-label="Month or Turning day"></select>
+            <label class="cyear" for="cYear">Year <input type="number" id="cYear" min="1" max="9999" aria-label="Year of the Fourth Age"></label>
+            <input type="time" id="cHour" aria-label="Time of day">
+          </span>
+          <button type="button" id="cPlay" aria-pressed="false">Run</button>
+          <button type="button" data-adv="-60">&minus;1 h</button>
+          <button type="button" data-adv="60">+1 h</button>
+          <button type="button" data-adv="480">+8 h</button>
+          <button type="button" data-adv="1440">+1 day</button>
+        </div>
+      </div>
+      <div class="map" id="mapBox">
+        <canvas id="cv" role="img" aria-label="Map of Earlsdale with glowing Feyline currents flowing between magical hotspots"></canvas>
+        <div class="maptag" id="mapTag" hidden>Test map</div>
+      </div>
+      <div class="controls">
+        <div class="group" role="group" aria-labelledby="g-play">
+          <span class="glabel" id="g-play">Play</span>
+          <div class="gbtns">
+            <button type="button" id="partyBtn" aria-pressed="false">Place party</button>
+            <button type="button" id="routeBtn" aria-pressed="false">Plan route</button>
+            <button type="button" id="measureBtn" aria-pressed="false">Measure</button>
+          </div>
+        </div>
+        <div class="group" role="group" aria-labelledby="g-view">
+          <span class="glabel" id="g-view">View</span>
+          <div class="gbtns">
+            <button type="button" id="heatBtn" aria-pressed="false">Strength map</button>
+            <button type="button" id="soundBtn" aria-pressed="false">Hear the tone</button>
+            <label class="sel" for="seasonSel">Season
+              <select id="seasonSel">
+                <option value="live">Current</option>
+                <option value="spring">Spring</option>
+                <option value="summer">Summer</option>
+                <option value="autumn">Autumn</option>
+                <option value="winter">Winter</option>
+                <option value="convergence">Turning day</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <details class="group setup" id="setup" open>
+          <summary class="glabel">Map setup</summary>
+          <div class="gbtns">
+            <label class="filebtn" for="mapFile">Load your map<input type="file" id="mapFile" accept="image/*"></label>
+            <button type="button" id="addSpotBtn" aria-pressed="false">Add hotspot</button>
+            <button type="button" id="editBtn" aria-pressed="false">Move hotspots</button>
+            <button type="button" id="copyBtn">Copy hotspots</button>
+            <button type="button" id="resetBtn" class="quiet">Reset</button>
+          </div>
+        </details>
+      </div>
+      <p class="hint" id="hint">Click a hotspot to read about it. The Feyline drifts between hotspots and gathers where they are strongest.</p>
+      <textarea id="posOut" hidden readonly aria-label="Hotspot positions as JSON"></textarea>
+    </section>
+
+    <aside class="panel" aria-label="Feyline reading">
+      <div class="season">
+        <h2 id="readingDate">Reading</h2>
+        <div class="name" id="seasonName">Autumn</div>
+        <p class="boon" id="seasonBoon"></p>
+        <p class="month" id="monthNote"></p>
+        <div class="dial" aria-hidden="true"><span id="seasonDial" style="width:30%"></span></div>
+        <p class="meta" id="seasonMeta"></p>
+      </div>
+      <div class="party" id="party" hidden>
+        <div class="probe-head"><h3>Party</h3><button type="button" class="ghost" id="clearParty">Remove</button></div>
+        <p class="ploc" id="partyLoc"></p>
+        <div class="pread"><span class="pval" id="partyVal">0</span><span class="pof">/ 100</span><span class="plvl" id="partyLvl"></span></div>
+        <div class="pmod"><span class="pmodv" id="partyMod">0</span><span>to arcane skill rolls</span></div>
+        <p class="pmeta" id="partyNote"></p>
+      </div>
+      <div class="travel" id="travel" hidden>
+        <div class="probe-head"><h3>Travel log</h3><span class="tbtns"><button type="button" class="ghost" id="undoStop">Undo stop</button><button type="button" class="ghost" id="clearRoute">Clear</button></span></div>
+        <label class="scale" for="daysCross">Days to cross the map, west to east <input type="number" id="daysCross" min="1" max="90" step="1" value="8"></label>
+        <p class="pmeta">Travel from 08:00 to 16:00 each day. Click a row to move the party there and set the clock.</p>
+        <p class="tsum" id="travelSum"></p>
+        <div class="tlog" id="travelLog"></div>
+      </div>
+      <div class="probe" id="probe" hidden>
+        <div class="probe-head"><h3>Probe reading</h3><button type="button" class="ghost" id="clearProbe">Clear</button></div>
+        <div class="pread"><span class="pval" id="pVal">0</span><span class="pof">/ 100</span><span class="plvl" id="pLvl"></span></div>
+        <div class="pmod"><span class="pmodv" id="pMod">0</span><span>to arcane skill rolls</span></div>
+        <p id="pLvlText"></p>
+        <ol class="legend" id="pLegend" aria-label="Feyline levels and roll modifiers"></ol>
+        <canvas id="pSpark" aria-hidden="true"></canvas>
+        <p class="pmeta"><span id="pTrend">Measuring</span> over the last minute</p>
+        <p class="pmeta" id="pSrc"></p>
+      </div>
+      <div class="glimpse">
+        <h3>Glimpses</h3>
+        <p class="pmeta">Short flares of stronger Feyline, mostly in weak areas. Any place gets one about once a day, lasting one to three hours.</p>
+        <ul class="glist" id="gList"></ul>
+        <p class="pmeta" id="gNext"></p>
+      </div>
+      <div class="detail" id="detail">
+        <div class="probe-head"><h3>Strongest now</h3><button type="button" class="ghost" id="editSpot">Edit</button></div>
+        <div id="dView">
+          <div class="dname" id="dName"></div>
+          <p class="kind" id="dKind"></p>
+          <p id="dText"></p>
+          <p class="favour" id="dFav"></p>
+        </div>
+        <form class="spotform" id="spotForm" hidden>
+          <label for="sfName">Name<input id="sfName" maxlength="60" autocomplete="off"></label>
+          <label for="sfKind">Type<input id="sfKind" maxlength="60" autocomplete="off" placeholder="e.g. Ruined shrine"></label>
+          <label for="sfText">Description<textarea id="sfText" rows="4"></textarea></label>
+          <div class="sfrow">
+            <label for="sfFav">Strongest in<select id="sfFav">
+              <option value="spring">Spring</option><option value="summer">Summer</option>
+              <option value="autumn">Autumn</option><option value="winter">Winter</option>
+              <option value="">Every season (steady)</option>
+            </select></label>
+            <label for="sfPow">Power<select id="sfPow">
+              <option value="0.6">Minor</option><option value="1">Normal</option><option value="1.35">Major</option>
+            </select></label>
+          </div>
+          <label class="chk" for="sfOn"><input type="checkbox" id="sfOn"> Active in this campaign</label>
+          <div class="sfbtns"><button type="button" id="sfDone">Done</button><button type="button" class="quiet" id="sfRemove">Remove hotspot</button></div>
+        </form>
+      </div>
+      <div>
+        <h3 style="margin-bottom:8px">Hotspots, live strength</h3>
+        <ol class="rank" id="rank"></ol>
+      </div>
+    </aside>
+  </main>
+
+  <footer>From the <a href="https://swift-icon-9d6.notion.site/The-Earlsdale-Compendium-97725bbd1dd146f6892b755038b1a29a" target="_blank" rel="noopener">Earlsdale Compendium</a> by Grimur Fjeldsted. Strengths are seeded by the date and hour, so the same moment always gives the same reading. Real time maps onto the Turning with First Thaw on 20 March, and 2026 as year 23 of the Fourth Age.</footer>
+</div>
+
+<script>
+(() => {
+  // ---------- Lore data ----------
+  const SEASONS = {
+    spring: { label: "Spring", color: "#86e3a6", boon: "Healing and growth spells run stronger.", tone: 220.0 },
+    summer: { label: "Summer", color: "#ff9d4d", boon: "Strength and fire spells are amplified.", tone: 246.94 },
+    autumn: { label: "Autumn", color: "#f0c454", boon: "Wisdom and harvest magic are favoured.", tone: 196.0 },
+    winter: { label: "Winter", color: "#a6dcff", boon: "Ice and preservation spells are more potent.", tone: 174.61 },
+    convergence: { label: "Convergence", color: "#d9a6ff", boon: "A Turning day. The currents run together and special rituals become possible.", tone: 207.65 }
+  };
+
+  const DEFAULT_SPOTS = [
+    { id: "watlenpits", name: "The Watlen Pits", kind: "Landmark · Watles mountains", x: .5006, y: 0.1854, fav: "winter",
+      text: "Caverns held by the Darkgnomes. Mada's whispers are said to sound loudest here." },
+    { id: "smolgor", name: "Thunder Mountain", kind: "Volcano", x: .6956, y: 0.4688, fav: "summer",
+      text: "A volcano that tore open in the Cataclysm and has erupted without pause ever since, now for {age} years. Ash drifts across the east when the wind turns, and the Feyline boils up with the lava." },
+    { id: "meran", name: "Meran", kind: "City · on a bridge", x: .3305, y: 0.5701, fav: "spring",
+      text: "A city built on a great bridge, its houses, markets and shrines crowded along the span. It lies on the southern edge of an ancient forest, long home to magical creatures." },
+    { id: "ravenstone", name: "Ravenstone", kind: "City · half in ruins", x: .8533, y: 0.4032, fav: "autumn",
+      text: "A city half in ruins, torn by civil war and blood feuds between its great houses. Barricades divide the streets, and every faction claims the ravens are on its side." },
+    { id: "gleamspire", name: "Gleamspire", kind: "Tower · in the Eldermere", x: .8059, y: 0.8797, fav: "summer",
+      text: "A tower that rose from the Eldermere after the Cataclysm, its stone still crusted with shells and weed. Its masonry matches the sunken tower at Elderstead, and no one knows who built either." },
+    { id: "elderstead", name: "Elderstead", kind: "Town · island", x: .9297, y: 0.6678, fav: "spring",
+      text: "A town on an island in the Eldermere, the Sunken Wood, which was a forest until the Cataclysm drowned it. Many journeys begin here. Off its shore lies a sunken tower of the same strange stone as Gleamspire." },
+    { id: "ortler", name: "Cloudstone", kind: "Castle", x: .885, y: 0.0787, fav: "winter",
+      text: "A castle in the north-eastern peaks, so high it is often lost in cloud. Strange lights dance around its towers, hinting at a hidden realm." },
+    { id: "trollspire", name: "The Trollspire", kind: "Mountain", x: .8188, y: 0.2666, fav: "winter",
+      text: "Trolls roam the slopes, and sprites live in secret tunnels deep inside the mountain." },
+    { id: "gravenrock", name: "Gravenrock", kind: "Headland · barrows", x: .1595, y: 0.793, fav: "winter",
+      text: "A rocky headland above the coast, crowded with barrows from the Third Age. The Feyline gathers here in winter, and locals swear the dead walk the cliffs on the Long Night." },
+    { id: "shardfall", name: "Shardfall", kind: "Crater field", x: .6149, y: 0.8124, fav: "winter",
+      text: "A field of black shards in the south, said to have fallen when Mada was destroyed at the end of the Second Age. The shards hum in cold weather, and scavengers pick through them for pieces that still hold power." },
+    { id: "karneid", name: "Karneid", kind: "City · ruins", x: .447, y: .30, fav: "spring",
+      text: "Capital of the duchy, in the foothills of the Watles. Giants from the north, believed to be led by Darkgnomes, nearly razed it. Its hot springs are said to hold magic." },
+    { id: "dragonfell", name: "Dragonfell", kind: "Ruined tower", x: .7441, y: 0.5383, fav: "summer",
+      text: "Ruins of a sorcerers' fortress, still scarred by Melchior's dark magic. Lost spellbooks and Feyline secrets draw seekers." }
+  ];
+
+  const EDGES = [
+    ["watlenpits", "trollspire"], ["watlenpits", "smolgor"], ["watlenpits", "meran"], ["ortler", "trollspire"],
+    ["trollspire", "ravenstone"], ["trollspire", "smolgor"], ["ravenstone", "dragonfell"], ["ravenstone", "elderstead"],
+    ["smolgor", "dragonfell"], ["smolgor", "meran"], ["dragonfell", "elderstead"], ["dragonfell", "shardfall"],
+    ["shardfall", "gleamspire"], ["gleamspire", "elderstead"], ["shardfall", "meran"], ["meran", "gravenrock"],
+    ["gravenrock", "shardfall"], ["karneid", "watlenpits"], ["karneid", "meran"], ["karneid", "smolgor"],
+    // Currents that run beyond Earlsdale
+    ["watlenpits", "@n"], ["gleamspire", "@se"], ["gravenrock", "@w"], ["ravenstone", "@e"]
+  ];
+  const OFFMAP = { "@n": { x: .5, y: -.08 }, "@se": { x: 1.08, y: .86 }, "@w": { x: -.08, y: .74 }, "@e": { x: 1.08, y: .2 } };
+
+  // ---------- State ----------
+  const LS_POS = "feyline.positions.v2", LS_MAP = "feyline.map.v1";
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } },
+    del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+  };
+  let spots = DEFAULT_SPOTS.map(s => ({ ...s, power: 1, off: false }));
+  // GM changes: hotspots added in this browser, and edits to the built-in ones
+  const LS_SPOTS = "feyline.spots.v1", EDITABLE = ["name", "kind", "text", "fav", "power", "off"];
+  try {
+    const sv = JSON.parse(store.get(LS_SPOTS) || "null");
+    if (sv) {
+      Object.entries(sv.edits || {}).forEach(([id, e]) => { const s = spots.find(x => x.id === id); if (s) EDITABLE.forEach(k => { if (k in e) s[k] = e[k]; }); });
+      (sv.added || []).forEach(a => { if (a && a.id && isFinite(a.x) && isFinite(a.y)) spots.push({ name: "New hotspot", kind: "Hotspot", text: "", fav: null, power: 1, off: false, ...a, custom: true }); });
+    }
+  } catch (e) {}
+  try {
+    const saved = JSON.parse(store.get(LS_POS) || "null");
+    if (Array.isArray(saved)) saved.forEach(p => { const s = spots.find(x => x.id === p.id); if (s && isFinite(p.x) && isFinite(p.y)) { s.x = p.x; s.y = p.y; } });
+  } catch (e) {}
+
+  let mode = "live";
+  let selected = null;
+  let editing = false;
+  let mapImg = null;
+  const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---------- The Turning calendar ----------
+  // 12 months of 30 days plus five Turning days outside the months: 365 days, no leap years.
+  // Time is counted in "world milliseconds" from First Thaw, year 1 of the Fourth Age, 00:00.
+  const DAY = 864e5, HOUR = 36e5;
+  const CAL = [
+    ["First Thaw", "turning", "spring"], ["Thawrise", "month", "spring"], ["Seedwake", "month", "spring"], ["Blossomveil", "month", "spring"],
+    ["The Long Sun", "turning", "summer"], ["Suncrest", "month", "summer"], ["Highflame", "month", "summer"], ["Goldfield", "month", "summer"],
+    ["Harvest's End", "turning", "autumn"], ["Reapfall", "month", "autumn"], ["Amberwane", "month", "autumn"], ["Mistveil", "month", "autumn"],
+    ["The Long Night", "turning", "winter"], ["Frosthold", "month", "winter"], ["Longnight", "month", "winter"], ["Ashdawn", "month", "winter"],
+    ["The Nameless Day", "nameless", null]
+  ];
+  const CAL_START = []; { let d = 0; CAL.forEach(c => { CAL_START.push(d); d += c[1] === "month" ? 30 : 1; }); }
+  const MONTH_LORE = {
+    Thawrise: "Melting snow, muddy roads, returning travellers", Seedwake: "Sowing, new beginnings, spring markets",
+    Blossomveil: "Flowering fields, courtship, old fertility rites", Suncrest: "Long days, tournaments, celebrations",
+    Highflame: "Heat, storms, pilgrimage", Goldfield: "Haymaking, early harvests",
+    Reapfall: "Harvest, markets, settling debts", Amberwane: "Falling leaves, hunting, preparation",
+    Mistveil: "Fog, remembrance, the first frosts", Frosthold: "Snow, closed passes, winter stores",
+    Longnight: "Darkness, hearthfires, stories of the dead", Ashdawn: "The last cold, dwindling supplies, waiting for spring"
+  };
+  const TURNING_LORE = {
+    "First Thaw": "Spring begins. Farmers bless their fields and the roads open again.",
+    "The Long Sun": "The longest day of the year, and a day for tournaments.",
+    "Harvest's End": "Stores are gathered and obligations settled before winter.",
+    "The Long Night": "Fires burn until dawn. Some say letting every flame die invites something into the house.",
+    "The Nameless Day": "It belongs to no month or season. People avoid promises, journeys and the names of the dead."
+  };
+  const p2 = n => String(n).padStart(2, "0");
+  const worldOf = (year, entry, day, minutes) => ((year - 1) * 365 + CAL_START[entry] + (CAL[entry][1] === "month" ? Math.min(30, Math.max(1, day)) - 1 : 0)) * DAY + minutes * 60000;
+  function turning(ms) {
+    const abs = Math.floor(ms / DAY), year = Math.floor(abs / 365) + 1, doy = abs - (year - 1) * 365;
+    let e = 0; while (e < CAL.length - 1 && CAL_START[e + 1] <= doy) e++;
+    const c = CAL[e];
+    return { year, doy, entry: e, name: c[0], kind: c[1], season: c[2], day: c[1] === "month" ? doy - CAL_START[e] + 1 : 0, minutes: Math.floor((ms - abs * DAY) / 60000) };
+  }
+  const ord = n => n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th");
+  const dayLabel = ms => { const t = turning(ms); return t.kind === "month" ? t.day + " " + t.name : t.name; };
+  const fmtLong = ms => { const t = turning(ms); return (t.kind === "month" ? "the " + ord(t.day) + " of " + t.name : t.name) + ", year " + t.year; };
+  const hhmm = ms => { const m = Math.floor((((ms % DAY) + DAY) % DAY) / 60000); return p2(Math.floor(m / 60)) + ":" + p2(m % 60); };
+  const startOfDay = (ms, add = 0) => (Math.floor(ms / DAY) + add) * DAY;
+  const hourOf = ms => (((ms % DAY) + DAY) % DAY) / HOUR;
+  // Real time: First Thaw falls on 20 March, and the year that begins on 20 March 2026 is year 23
+  function realToWorld(realMs) {
+    const d = new Date(realMs);
+    let y = d.getFullYear(), ft = new Date(y, 2, 20).getTime();
+    if (realMs < ft) { y--; ft = new Date(y, 2, 20).getTime(); }
+    const midnight = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const doy = Math.min(364, Math.round((midnight - ft) / DAY));
+    const minutes = d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+    return ((y - 2026 + 23 - 1) * 365 + doy) * DAY + minutes * 60000;
+  }
+  const SEASON_START = { spring: 0, summer: 91, autumn: 182, winter: 273 };
+  const NEXT_TURNINGS = [[91, "The Long Sun"], [182, "Harvest's End"], [273, "The Long Night"], [364, "The Nameless Day"], [365, "First Thaw"]];
+  function seasonInfo(ms) {
+    const t = turning(ms), doy = t.doy, nameless = t.kind === "nameless";
+    const season = nameless ? "winter" : t.season;
+    const next = NEXT_TURNINGS.find(n => n[0] > doy);
+    return {
+      t, season, nameless, day: Math.min(91, doy - SEASON_START[season] + 1), length: 91,
+      next: { name: next[1] }, daysToNext: next[0] - doy,
+      convergence: t.kind === "turning" ? { name: t.name } : null
+    };
+  }
+  const realSeasonAt = ms => { const i = seasonInfo(ms); return i.convergence ? "convergence" : i.season; };
+
+  // ---------- Campaign clock ----------
+  // Real time follows the computer's clock. Campaign time is set by the GM and can be paused, run or advanced.
+  const LS_CLOCK = "feyline.clock.v2";
+  const clock = { campaign: false, base: realToWorld(Date.now()), anchor: performance.now(), running: false };
+  try { const c = JSON.parse(store.get(LS_CLOCK) || "null"); if (c && isFinite(c.base)) { clock.campaign = !!c.campaign; clock.base = c.base; } } catch (e) {}
+  function nowMs() { return clock.campaign ? clock.base + (clock.running ? performance.now() - clock.anchor : 0) : realToWorld(Date.now()); }
+  function saveClock() { store.set(LS_CLOCK, JSON.stringify({ campaign: clock.campaign, base: clock.campaign ? nowMs() : clock.base })); }
+  let info = seasonInfo(nowMs());
+
+  // Seeded strengths: constants per hotspot, a daily value per hotspot and date, blended smoothly through the day
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function hashStr(str) { let h = 2166136261; for (const c of str) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function initSpot(s) {
+    s.h = hashStr(s.id);
+    const r = mulberry32(s.h);
+    s.phase = r() * Math.PI * 2;
+    s.phase2 = r() * Math.PI * 2;
+    s.freq = .04 + r() * .06;                              // small swell, one to three minutes
+    s.freq2 = Math.PI * 2 / ((1 + r() * 3) * 3600);        // main tide, one to four hours
+    s.dseed = r() * 200;
+    s.spin = (r() < .5 ? -1 : 1) * (.35 + r() * .5);
+    s.cx = s.x; s.cy = s.y;
+  }
+  spots.forEach(initSpot);
+  const dailyOf = (s, key) => .35 + mulberry32(key * 31 + s.h)() * .5;
+  function dailyAt(s, ms) {
+    const d0 = startOfDay(ms), d1 = startOfDay(ms, 1), u = (ms - d0) / (d1 - d0);
+    const a = dailyOf(s, Math.floor(d0 / DAY)), b = dailyOf(s, Math.floor(d1 / DAY));
+    return a + (b - a) * u * u * (3 - 2 * u);
+  }
+
+  function effectiveSeason() {
+    if (mode === "live") return info.convergence ? "convergence" : info.season;
+    return mode;
+  }
+  function baseAt(s, ms, se) {
+    if (s.off) return 0;
+    let v = dailyAt(s, ms) * (s.power || 1);
+    if (se === "convergence") v += .18;
+    else if (s.fav === se) v += .22;
+    return Math.min(1, v);
+  }
+  function strengthAt(s, ms, se) {
+    const t = ms / 1000, amp = .4;
+    const wave = .5 + .5 * (.35 * Math.sin(t * s.freq + s.phase) + .65 * Math.sin(t * s.freq2 + s.phase2));
+    return baseAt(s, ms, se) * (1 - amp + amp * wave);
+  }
+  const baseStrength = s => baseAt(s, nowMs(), effectiveSeason());
+  const DRIFT = .028;
+  const driftX = (s, t) => s.x + (vnoise(s.dseed, t * .06, 0) - .5) * 2 * DRIFT;
+  const driftY = (s, t) => s.y + (vnoise(s.dseed + 40, t * .06, 7) - .5) * 2 * DRIFT;
+
+  // ---------- Colour ----------
+  function hexToRgb(h) { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+  const SEQ = ["spring", "summer", "autumn", "winter"].map(k => hexToRgb(SEASONS[k].color));
+  function feyRgb(t) {
+    const se = effectiveSeason();
+    if (se !== "convergence") return hexToRgb(SEASONS[se].color);
+    const p = (t * .12) % 4, i = Math.floor(p), f = p - i;
+    const a = SEQ[i], b = SEQ[(i + 1) % 4];
+    return a.map((c, k) => Math.round(c + (b[k] - c) * f));
+  }
+  const sprites = new Map();
+  function sprite(rgb) {
+    const key = rgb.map(c => c >> 3).join(",");
+    if (sprites.has(key)) return sprites.get(key);
+    const c = document.createElement("canvas"); c.width = c.height = 64;
+    const g = c.getContext("2d"), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, `rgba(255,255,255,1)`);
+    gr.addColorStop(.18, `rgba(${rgb},0.95)`);
+    gr.addColorStop(.5, `rgba(${rgb},0.28)`);
+    gr.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    if (sprites.size > 80) sprites.clear();
+    sprites.set(key, c); return c;
+  }
+
+  // ---------- Canvas ----------
+  const box = document.getElementById("mapBox");
+  const cv = document.getElementById("cv");
+  const ctx = cv.getContext("2d");
+  const terrain = document.createElement("canvas");
+  let W = 0, H = 0, DPR = 1;
+
+  function resize() {
+    const r = box.getBoundingClientRect();
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.max(1, r.width); H = Math.max(1, r.height);
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    terrain.width = cv.width; terrain.height = cv.height;
+    drawTerrain();
+    setupTrail();
+    if (typeof heatT !== "undefined") heatT = -1;
+    if (reduced) render(performance.now() / 1000);
+  }
+
+  function drawTerrain() {
+    const g = terrain.getContext("2d");
+    g.setTransform(DPR, 0, 0, DPR, 0, 0);
+    g.clearRect(0, 0, W, H);
+    if (mapImg) {
+      const s = Math.max(W / mapImg.width, H / mapImg.height);
+      const iw = mapImg.width * s, ih = mapImg.height * s;
+      g.drawImage(mapImg, (W - iw) / 2, (H - ih) / 2, iw, ih);
+      g.fillStyle = "rgba(10,15,24,0.45)"; g.fillRect(0, 0, W, H);
+      return;
+    }
+    const R = mulberry32(7);
+    const bg = g.createRadialGradient(W * .5, H * .45, 0, W * .5, H * .5, Math.max(W, H) * .75);
+    bg.addColorStop(0, "#1a2636"); bg.addColorStop(1, "#0b111a");
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    // speckle
+    g.fillStyle = "rgba(233,223,200,0.05)";
+    for (let i = 0; i < 900; i++) g.fillRect(R() * W, R() * H, 1, 1);
+
+    const P = (x, y) => [x * W, y * H];
+    // Silent Sea
+    g.beginPath(); g.moveTo(0, H);
+    g.lineTo(0, H * .84);
+    for (let x = 0; x <= .58; x += .02) { const [px, py] = P(x, .86 + Math.sin(x * 22) * .012 + (x > .45 ? (x - .45) * .6 : 0)); g.lineTo(px, py); }
+    g.lineTo(W * .62, H); g.closePath();
+    g.fillStyle = "#0a1624"; g.fill();
+    g.strokeStyle = "rgba(167,165,148,0.28)"; g.lineWidth = 1; g.stroke();
+    label(g, "Silent Sea", .18, .94, 13, .38, true);
+
+    // Mountains
+    const mtn = (pts, n, size) => {
+      g.strokeStyle = "rgba(167,165,148,0.42)"; g.lineWidth = 1.1;
+      for (let i = 0; i < n; i++) {
+        const u = i / (n - 1), seg = u * (pts.length - 1), k = Math.min(pts.length - 2, Math.floor(seg)), f = seg - k;
+        const x = (pts[k][0] + (pts[k + 1][0] - pts[k][0]) * f + (R() - .5) * .03) * W;
+        const y = (pts[k][1] + (pts[k + 1][1] - pts[k][1]) * f + (R() - .5) * .03) * H;
+        const s = size * (0.7 + R() * .6) * Math.min(W, H) / 600;
+        g.beginPath(); g.moveTo(x - s, y + s * .55); g.lineTo(x, y - s * .7); g.lineTo(x + s, y + s * .55); g.stroke();
+        g.beginPath(); g.moveTo(x, y - s * .7); g.lineTo(x + s * .25, y + s * .2); g.strokeStyle = "rgba(167,165,148,0.2)"; g.stroke(); g.strokeStyle = "rgba(167,165,148,0.42)";
+      }
+    };
+    mtn([[.05, .78], [.07, .45], [.09, .16]], 22, 14);
+    mtn([[.12, .07], [.5, .06], [.9, .08]], 34, 15);
+    mtn([[.94, .14], [.92, .4], [.95, .62]], 18, 14);
+    label(g, "Watles", .66, .035, 12, .45);
+    label(g, "Marbek", .085, .5, 12, .55);
+
+    // Rivers into the Silent Sea
+    g.strokeStyle = "rgba(120,160,190,0.4)"; g.lineWidth = 1.6; g.lineCap = "round";
+    const river = (a, b, c, d) => { g.beginPath(); g.moveTo(...P(...a)); g.bezierCurveTo(...P(...b), ...P(...c), ...P(...d)); g.stroke(); };
+    river([.38, .12], [.36, .3], [.44, .38], [.46, .45]);
+    river([.47, .52], [.42, .62], [.38, .74], [.36, .87]);
+    river([.6, .12], [.66, .3], [.58, .55], [.44, .74]);
+    river([.8, .14], [.82, .4], [.62, .7], [.48, .86]);
+
+    // Ahnensee
+    g.beginPath();
+    for (let a = 0; a <= Math.PI * 2 + .01; a += .15) {
+      const r = 1 + .13 * Math.sin(a * 3 + 1) + .07 * Math.sin(a * 5);
+      const x = (.49 + Math.cos(a) * .065 * r) * W, y = (.48 + Math.sin(a) * .045 * r) * H;
+      a === 0 ? g.moveTo(x, y) : g.lineTo(x, y);
+    }
+    g.closePath(); g.fillStyle = "#0d1d2e"; g.fill(); g.strokeStyle = "rgba(120,160,190,0.5)"; g.lineWidth = 1; g.stroke();
+
+    // Marshes
+    g.strokeStyle = "rgba(140,160,120,0.35)"; g.lineWidth = 1;
+    for (let i = 0; i < 70; i++) {
+      const x = (.56 + R() * .3) * W, y = (.8 + R() * .14) * H, s = 3 + R() * 3;
+      g.beginPath(); g.moveTo(x - s, y); g.lineTo(x + s, y); g.moveTo(x, y); g.lineTo(x, y - s * 1.2); g.moveTo(x, y); g.lineTo(x - s * .7, y - s); g.moveTo(x, y); g.lineTo(x + s * .7, y - s); g.stroke();
+    }
+    label(g, "Totenmarsch", .7, .93, 12, .4, true);
+
+    // Wargaswald
+    g.strokeStyle = "rgba(140,160,120,0.38)";
+    for (let i = 0; i < 60; i++) {
+      const x = (.8 + R() * .16) * W, y = (.6 + R() * .2) * H, s = 3 + R() * 3;
+      g.beginPath(); g.arc(x, y, s, Math.PI, 0); g.stroke();
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + s * .9); g.stroke();
+    }
+    label(g, "Wargaswald", .88, .83, 12, .4, true);
+
+    // Lakhaven
+    const [lx, ly] = P(.47, .85);
+    g.fillStyle = "rgba(233,223,200,0.55)"; g.fillRect(lx - 3, ly - 3, 6, 6);
+    label(g, "Lakhaven", .47, .82, 12, .55);
+
+    // Duchies
+    duchy(g, "Karneid", .5, .25);
+    duchy(g, "Jarl", .17, .47);
+    duchy(g, "Martsch", .62, .8);
+  }
+  function label(g, text, x, y, size, alpha, italic) {
+    g.font = `${italic ? "italic " : ""}${size}px "Alegreya", Georgia, serif`;
+    g.fillStyle = `rgba(233,223,200,${alpha})`; g.textAlign = "center"; g.textBaseline = "middle";
+    g.fillText(text, x * W, y * H);
+  }
+  function duchy(g, text, x, y) {
+    const size = Math.max(12, Math.min(20, W / 42));
+    g.font = `${size}px "IM Fell English SC", Georgia, serif`;
+    g.fillStyle = "rgba(233,223,200,0.22)"; g.textAlign = "center"; g.textBaseline = "middle";
+    const spaced = ("Duchy of " + text).split("").join(String.fromCharCode(8202));
+    g.fillText(spaced, x * W, y * H);
+  }
+
+  // ---------- Feyline field ----------
+  // Smooth 3D value noise for drift and turbulence
+  const PERM = new Uint8Array(512);
+  { const r = mulberry32(1337); const p = [...Array(256).keys()];
+    for (let i = 255; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [p[i], p[j]] = [p[j], p[i]]; }
+    for (let i = 0; i < 512; i++) PERM[i] = p[i & 255]; }
+  const smooth = x => x * x * (3 - 2 * x);
+  const lerp = (a, b, u) => a + (b - a) * u;
+  function vnoise(x, y, z) {
+    const X = Math.floor(x), Y = Math.floor(y), Z = Math.floor(z);
+    const u = smooth(x - X), v = smooth(y - Y), w = smooth(z - Z);
+    const h = (i, j, k) => PERM[(PERM[(PERM[(X + i) & 255] + Y + j) & 255] + Z + k) & 255] / 255;
+    return lerp(
+      lerp(lerp(h(0, 0, 0), h(1, 0, 0), u), lerp(h(0, 1, 0), h(1, 1, 0), u), v),
+      lerp(lerp(h(0, 0, 1), h(1, 0, 1), u), lerp(h(0, 1, 1), h(1, 1, 1), u), v), w);
+  }
+
+  const spotById = new Map(), NEIGH = new Map();
+  const addN = (a, b) => { if (a.startsWith("@")) return; if (!NEIGH.has(a)) NEIGH.set(a, []); if (!NEIGH.get(a).includes(b)) NEIGH.get(a).push(b); };
+  function rebuildGraph() {
+    spotById.clear(); NEIGH.clear();
+    spots.forEach(s => spotById.set(s.id, s));
+    EDGES.forEach(([a, b]) => { addN(a, b); addN(b, a); });
+    // GM-added hotspots link to their three nearest neighbours
+    spots.filter(s => s.custom).forEach(c => {
+      spots.filter(o => o !== c).map(o => [o, Math.hypot(o.x - c.x, (o.y - c.y) * .76)]).sort((a, b) => a[1] - b[1]).slice(0, 3)
+        .forEach(([o]) => { addN(c.id, o.id); addN(o.id, c.id); });
+    });
+  }
+  rebuildGraph();
+
+  let parts = [], strengthsNow = new Map(), scale = 1, activeFlares = [];
+  const sOf = id => id.startsWith("@") ? .45 : id.startsWith("*") ? (activeFlares[+id.slice(1)]?.env ?? 0) * .8 : (strengthsNow.get(id) ?? .5);
+
+
+  function pickWeighted(list, wfn) {
+    let tot = 0; const ws = list.map(x => { const w = wfn(x); tot += w; return w; });
+    let r = Math.random() * tot;
+    for (let i = 0; i < list.length; i++) { r -= ws[i]; if (r <= 0) return list[i]; }
+    return list[list.length - 1];
+  }
+  function nextTarget(fromId) {
+    const r = Math.random();
+    if (activeFlares.length && r < .05) return "*" + Math.floor(Math.random() * activeFlares.length);
+    if (r < .1) return pickWeighted(spots.filter(s => s.id !== fromId), s => s.off ? 0 : Math.pow(sOf(s.id), 2) + .03).id; // long journeys
+    const n = NEIGH.get(fromId) || [];
+    if (!n.length) return pickWeighted(spots, s => s.off ? 0 : sOf(s.id) + .01).id;
+    return pickWeighted(n, id => id.startsWith("@") ? .12 : spotById.get(id)?.off ? 0 : Math.pow(sOf(id), 2.2) + .04);
+  }
+  function targetPos(id) {
+    if (id.startsWith("@")) { const o = OFFMAP[id]; return [o.x * W, o.y * H]; }
+    if (id.startsWith("*")) { const f = activeFlares[+id.slice(1)]; return f ? [f.x * W, f.y * H] : [W / 2, H / 2]; }
+    const s = spotById.get(id); return s ? [s.cx * W, s.cy * H] : [W / 2, H / 2];
+  }
+  function spawn(p, anywhere) {
+    if (anywhere) {
+      p.x = Math.random() * W; p.y = Math.random() * H;
+      p.target = spots[Math.floor(Math.random() * spots.length)].id;
+    } else {
+      const src = pickWeighted(spots, s => s.off ? 0 : Math.pow(sOf(s.id), 2) + .02);
+      const a = Math.random() * Math.PI * 2, r = Math.random() * 16 * scale;
+      p.x = src.cx * W + Math.cos(a) * r; p.y = src.cy * H + Math.sin(a) * r;
+      p.target = nextTarget(src.id);
+    }
+    p.hist = []; p.acc = 0;
+    p.no = Math.random() * 2.5;      // each mote feels the turbulence a little differently
+    p.sk = .75 + Math.random() * .5; // and is pulled with its own eagerness
+    p.wr = Math.random();            // its own thickness
+    p.tn = 8 + Math.floor((.5 * p.wr + .5 * Math.random()) * 31); // and its own trail length
+    p.wc = 1;
+    p.vx = (Math.random() - .5) * 30 * scale; p.vy = (Math.random() - .5) * 30 * scale;
+    p.life = 8 + Math.random() * 18;
+    p.stray = Math.random() < .08;
+  }
+
+  function updateHotspots() {
+    const ms = nowMs(), t = ms / 1000, se = effectiveSeason();
+    spots.forEach(s => {
+      s.cx = driftX(s, t); s.cy = driftY(s, t);
+      strengthsNow.set(s.id, strengthAt(s, ms, se));
+    });
+  }
+
+  function step(dt, t) {
+    updateHotspots();
+    const attractors = spots.concat(activeFlares);
+    const conv = effectiveSeason() === "convergence";
+    const m = Math.min(W, H);
+    const dev = .65 + .8 * vnoise(3.3, t * .022, 1.1); // how wild the currents run right now
+    const seek = 70 * scale, turb = 48 * scale * dev, f = 3 / m, maxV = (conv ? 110 : 75) * scale;
+    const damp = Math.pow(.3, dt);
+
+    for (const p of parts) {
+      p.life -= dt;
+      if (p.life <= 0) { spawn(p, false); continue; }
+      let ax = 0, ay = 0, ts = .3;
+      if (!p.stray) {
+        const [tx, ty] = targetPos(p.target);
+        const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy) || 1;
+        ts = sOf(p.target);
+        const k = seek * (.55 + ts) * p.sk;
+        ax += dx / d * k; ay += dy / d * k;
+        if (d < (16 + 22 * ts) * scale) {
+          if (p.target.startsWith("@")) { spawn(p, false); continue; }
+          p.target = nextTarget(p.target);
+        }
+      }
+      const ang = vnoise(p.x * f, p.y * f, t * .045 + (p.stray ? 9 : 0)) * Math.PI * 4;
+      const tw = turb * (p.stray ? 1.5 : 1);
+      ax += Math.cos(ang) * tw;
+      ay += Math.sin(ang) * tw;
+      for (const s of attractors) {
+        const sv = sOf(s.id), R = .15 * m * (.5 + sv);
+        const dx = s.cx * W - p.x, dy = s.cy * H - p.y, d2 = dx * dx + dy * dy;
+        if (d2 < R * R) {
+          const d = Math.sqrt(d2) || 1, g = (1 - d / R) * sv * 60 * scale;
+          ax += dx / d * g * .5 - dy / d * g * s.spin;
+          ay += dy / d * g * .5 + dx / d * g * s.spin;
+        }
+      }
+      p.vx = (p.vx + ax * dt) * damp; p.vy = (p.vy + ay * dt) * damp;
+      const sp = Math.hypot(p.vx, p.vy);
+      if (sp > maxV) { p.vx *= maxV / sp; p.vy *= maxV / sp; }
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.x < -60 || p.y < -60 || p.x > W + 60 || p.y > H + 60) { spawn(p, false); continue; }
+      p.bright = p.stray ? .2 : .25 + .7 * ts;
+      p.acc += dt;
+      if (p.acc >= TRAIL_DT) { p.acc = 0; p.hist.push(p.x, p.y); if (p.hist.length > p.tn * 2) p.hist.splice(0, 2); }
+      // Thickness follows broad, slowly shifting bands, so whole streams swell and thin out
+      const q = (.6 * vnoise(p.x * f * .6, p.y * f * .6, t * .03 + 5) + .4 * p.wr - .5) * 1.9 + .5;
+      p.wc = q < .38 ? 0 : q < .72 ? 1 : 2;
+    }
+  }
+
+  // Each mote draws its recent path; older segments are fainter.
+  const TRAIL_N = 40, TRAIL_DT = .05;
+  const WIDTHS = [.8, 1.35, 2.1], WALPHA = [1, .95, .75];
+  function drawTrails(rgbS) {
+    // Each trail is split into four age sections; each section is one smooth curve through the midpoints.
+    const paths = Array.from({ length: 36 }, () => new Path2D());
+    const xs = [], ys = [];
+    for (const p of parts) {
+      const h = p.hist, n = h.length / 2;
+      if (n < 2) continue;
+      xs.length = 0; ys.length = 0;
+      for (let k = 0; k < n; k++) { xs.push(h[k * 2]); ys.push(h[k * 2 + 1]); }
+      xs.push(p.x); ys.push(p.y);
+      const N = xs.length, sb = Math.min(2, Math.floor((p.bright || .3) * 3)), base = ((p.wc || 0) * 3 + sb) * 4;
+      for (let age = 0; age < 4; age++) {
+        const i0 = Math.floor(age * (N - 1) / 4), i1 = Math.floor((age + 1) * (N - 1) / 4);
+        if (i1 <= i0) continue;
+        const path = paths[base + age];
+        path.moveTo((xs[i0] + xs[i0 + 1]) / 2 * (i0 ? 1 : 0) + (i0 ? 0 : xs[0]), (ys[i0] + ys[i0 + 1]) / 2 * (i0 ? 1 : 0) + (i0 ? 0 : ys[0]));
+        for (let k = i0 + 1; k <= i1; k++) {
+          const last = k === N - 1;
+          const mx = last ? xs[k] : (xs[k] + xs[k + 1]) / 2, my = last ? ys[k] : (ys[k] + ys[k + 1]) / 2;
+          path.quadraticCurveTo(xs[k], ys[k], mx, my);
+        }
+      }
+    }
+    ctx.lineCap = "butt";
+    ctx.lineJoin = "round";
+    paths.forEach((path, i) => {
+      const wc = Math.floor(i / 12), sb = Math.floor(i / 4) % 3, age = i % 4;
+      ctx.lineWidth = WIDTHS[wc] * Math.max(.75, scale);
+      const a = (.18 + .32 * sb) * (.12 + .88 * ((age + 1) / 4)) * WALPHA[wc];
+      ctx.strokeStyle = `rgba(${rgbS},${a.toFixed(3)})`;
+      ctx.stroke(path);
+    });
+  }
+
+
+  function warm(n) {
+    const t0 = performance.now() / 1000;
+    for (let i = 0; i < n; i++) step(1 / 30, t0 - (n - i) / 30);
+  }
+
+  function setupTrail() {
+    scale = Math.max(.6, Math.min(W, H) / 560);
+    updateHotspots();
+    const count = Math.round(Math.min(1500, Math.max(260, W * H / 420)));
+    parts = Array.from({ length: count }, () => { const p = {}; spawn(p, Math.random() < .5); p.life *= Math.random(); return p; });
+    warm(reduced ? 200 : 60);
+  }
+
+  function render(t) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.drawImage(terrain, 0, 0);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.globalCompositeOperation = "lighter";
+
+    const rgb = feyRgb(t), rgbS = rgb.join(","), spr = sprite(rgb);
+    const conv = effectiveSeason() === "convergence";
+    if (showHeat) {
+      if (heatT < 0 || t - heatT > .5 || t < heatT) buildHeat(t);
+      drawHeat(rgbS);
+      ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = .3;
+    }
+    drawTrails(rgbS);
+    ctx.globalAlpha = 1;
+
+    spots.forEach(s => {
+      if (s.off) return;
+      const v = sOf(s.id), x = s.cx * W, y = s.cy * H;
+      const size = (34 + 96 * v) * Math.max(.7, scale);
+      ctx.globalAlpha = .4 + .55 * v;
+      ctx.drawImage(spr, x - size / 2, y - size / 2, size, size);
+      if (conv) {
+        const ring = ((t * .4 + s.phase) % 1);
+        ctx.globalAlpha = (1 - ring) * .5;
+        ctx.beginPath(); ctx.arc(x, y, 8 + ring * 46, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${rgbS},1)`; ctx.lineWidth = 1.2; ctx.stroke();
+      }
+    });
+    activeFlares.forEach(fl => {
+      const x = fl.x * W, y = fl.y * H, e = fl.env;
+      const size = (50 + 90 * e) * Math.max(.7, scale) * (1 + .08 * Math.sin(t * 1.3 + fl.x * 9));
+      ctx.globalAlpha = .2 + .55 * e;
+      ctx.drawImage(spr, x - size / 2, y - size / 2, size, size);
+      const ring = (t * .25 + fl.y * 3) % 1;
+      ctx.globalAlpha = (1 - ring) * .35 * e;
+      ctx.beginPath(); ctx.arc(x, y, (14 + ring * 60) * Math.max(.7, scale), 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${rgbS},1)`; ctx.lineWidth = 1; ctx.stroke();
+    });
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = "source-over";
+
+    const fs = Math.max(11, Math.min(15, W / 58));
+    ctx.font = `500 ${fs}px "Alegreya Sans SC", "Gill Sans", sans-serif`;
+    ctx.textBaseline = "middle";
+    spots.forEach(s => {
+      const x = s.x * W, y = s.y * H, sel = selected === s.id;
+      if (s.off && !sel && !editing) return;
+      ctx.globalAlpha = s.off ? .45 : 1;
+      ctx.beginPath(); ctx.moveTo(x, y - 5); ctx.lineTo(x + 5, y); ctx.lineTo(x, y + 5); ctx.lineTo(x - 5, y); ctx.closePath();
+      ctx.fillStyle = "#e9dfc8"; ctx.fill();
+      ctx.strokeStyle = "#0e1520"; ctx.lineWidth = 1.2; ctx.stroke();
+      if (sel || editing) {
+        ctx.beginPath(); ctx.arc(x, y, 12, 0, Math.PI * 2);
+        ctx.strokeStyle = sel ? `rgba(${rgbS},1)` : "rgba(233,223,200,0.5)"; ctx.lineWidth = 1.5;
+        if (editing && !sel) ctx.setLineDash([3, 3]);
+        ctx.stroke(); ctx.setLineDash([]);
+      }
+      const right = s.x < .8;
+      ctx.textAlign = right ? "left" : "right";
+      const lx = x + (right ? 11 : -11);
+      ctx.lineWidth = 3.5; ctx.strokeStyle = "rgba(14,21,32,0.85)"; ctx.strokeText(s.name, lx, y);
+      ctx.fillStyle = sel ? `rgb(${rgbS})` : "#e9dfc8"; ctx.fillText(s.name, lx, y);
+      ctx.globalAlpha = 1;
+    });
+
+    drawProbe(t, rgbS);
+    drawParty(rgbS);
+    lastStrengths = strengthsNow;
+  }
+
+  let lastStrengths = new Map(), lastTs = 0;
+  function loop(ts) {
+    const dt = lastTs ? Math.min(.05, (ts - lastTs) / 1000) : 1 / 60;
+    lastTs = ts;
+    step(dt, ts / 1000);
+    render(ts / 1000);
+    requestAnimationFrame(loop);
+  }
+
+
+  // ---------- Glimpses ----------
+  // Brief flares of stronger Feyline, seeded by date so every visitor sees the same ones.
+  // About 36 a day, each 1 to 3 hours long, placed in weak areas: any given spot gets one roughly once a day.
+  const FLARE_R = .09, FLARE_BOOST = .32;
+  const flareCache = new Map();
+  function kernel(dx, dy, v) {
+    const d2 = dx * dx + dy * dy, sig = .075 * (.6 + v);
+    return v * (.72 * Math.exp(-d2 / (sig * sig)) + .3 * Math.exp(-d2 / (.23 * .23)));
+  }
+  function baseFieldAt(nx, ny, key, se) {
+    const m = Math.min(W, H) || 1; let f = 0;
+    for (const s of spots) {
+      if (s.off) continue;
+      const v = Math.min(1, dailyOf(s, key) * (s.power || 1) + (se === "convergence" ? .18 : s.fav === se ? .22 : 0));
+      f += kernel((nx - s.x) * W / m, (ny - s.y) * H / m, v);
+    }
+    return .92 * fieldValue(f);
+  }
+  function flaresFor(dayMs) {
+    const key = Math.floor(dayMs / DAY);
+    if (flareCache.has(key)) return flareCache.get(key);
+    const r = mulberry32(key * 7 + 991), se = realSeasonAt(dayMs + 12 * HOUR), list = [];
+    for (let i = 0; i < 36; i++) {
+      let best = null;
+      for (let c = 0; c < 3; c++) {
+        const x = .06 + r() * .88, y = .06 + r() * .88, b = baseFieldAt(x, y, key, se);
+        if (!best || b < best.b) best = { x, y, b };
+      }
+      const start = dayMs + r() * 24 * HOUR, dur = (1 + r() * 2) * HOUR;
+      list.push({ x: best.x, y: best.y, start, end: start + dur, spin: r() < .5 ? -.5 : .5 });
+    }
+    flareCache.set(key, list);
+    return list;
+  }
+  const flaresAround = ms => [...flaresFor(startOfDay(ms, -1)), ...flaresFor(startOfDay(ms)), ...flaresFor(startOfDay(ms, 1))];
+  function flaresActiveAt(ms) {
+    return flaresAround(ms).filter(f => ms > f.start && ms < f.end)
+      .map(f => ({ ...f, env: Math.pow(Math.sin(Math.PI * (ms - f.start) / (f.end - f.start)), 1.5) }));
+  }
+  function placeName(x, y) {
+    const m = Math.min(W, H) || 1;
+    let near = spots[0], bd = Infinity;
+    spots.forEach(s => { const d = Math.hypot((x - s.x) * W, (y - s.y) * H) / m; if (d < bd) { bd = d; near = s; } });
+    if (bd < .06) return "at " + near.name;
+    const ang = Math.atan2(-(y - near.y) * H, (x - near.x) * W);
+    const dirs = ["east", "north-east", "north", "north-west", "west", "south-west", "south", "south-east"];
+    return dirs[(Math.round(ang / (Math.PI / 4)) + 8) % 8] + " of " + near.name;
+  }
+  function updateFlares() {
+    const now = nowMs();
+    activeFlares = flaresActiveAt(now).map((f, i) => ({ ...f, id: "*" + i, cx: f.x, cy: f.y }));
+    const next = flaresAround(now).filter(f => f.start > now).sort((a, b) => a.start - b.start)[0];
+    const ul = $("gList"); ul.textContent = "";
+    activeFlares.forEach(f => {
+      const li = document.createElement("li");
+      li.textContent = placeName(f.x, f.y) + ", " + (now < (f.start + f.end) / 2 ? "growing" : "fading") + " until " + hhmm(f.end);
+      ul.appendChild(li);
+    });
+    ul.hidden = !activeFlares.length;
+    $("gNext").textContent = (activeFlares.length ? "" : "No glimpse right now. ") + (next ? "Next one " + placeName(next.x, next.y) + " around " + hhmm(next.start) + (startOfDay(next.start) !== startOfDay(now) ? " (" + dayLabel(next.start) + ")" : "") + "." : "");
+  }
+  function boostFrom(list, nx, ny) {
+    const m = Math.min(W, H) || 1; let boost = 0, top = null, tb = 0;
+    for (const f of list) {
+      const dx = (nx - f.x) * W / m, dy = (ny - f.y) * H / m;
+      const b = FLARE_BOOST * f.env * Math.exp(-(dx * dx + dy * dy) / (FLARE_R * FLARE_R));
+      boost += b; if (b > tb) { tb = b; top = f; }
+    }
+    return { boost, top };
+  }
+  const flareAt = (nx, ny) => boostFrom(activeFlares, nx, ny);
+  // Strength at any place and any campaign moment, without the animated currents (used for travel forecasts)
+  function fieldAtTime(nx, ny, ms) {
+    const t = ms / 1000, se = realSeasonAt(ms), m = Math.min(W, H) || 1; let f = 0;
+    for (const s of spots) f += kernel((nx - driftX(s, t)) * W / m, (ny - driftY(s, t)) * H / m, strengthAt(s, ms, se));
+    const fl = boostFrom(flaresActiveAt(ms), nx, ny);
+    return { v: Math.min(1, .92 * fieldValue(f) + fl.boost), flare: fl.boost > .05 };
+  }
+
+  // ---------- Probe ----------
+  let probe = null, measuring = false, showHeat = false, draggingProbe = false, probeHist = [], heatT = -1;
+  const hm = document.createElement("canvas"), hctx = hm.getContext("2d");
+  const clamp01 = v => Math.min(.99, Math.max(.01, v));
+  function fieldContribs(nx, ny) {
+    const m = Math.min(W, H), out = []; let sum = 0;
+    for (const s of spots) {
+      const v = sOf(s.id), dx = (nx - s.cx) * W / m, dy = (ny - s.cy) * H / m;
+      const c = kernel(dx, dy, v); // a tight core around each hotspot plus a broad, gentle halo
+      sum += c; out.push([s, c]);
+    }
+    return { sum, out };
+  }
+  function densityAt(nx, ny) {
+    const x = nx * W, y = ny * H, r = 28 * scale, r2 = r * r; let n = 0;
+    for (const p of parts) { const dx = p.x - x, dy = p.y - y; if (dx * dx + dy * dy < r2) n++; }
+    const expected = parts.length * Math.PI * r2 / (W * H);
+    return Math.min(1, n / (expected * 4 + 1));
+  }
+  function measure(nx, ny, t) {
+    const f = fieldContribs(nx, ny);
+    const fl = flareAt(nx, ny);
+    const v = Math.min(1, .92 * fieldValue(f.sum) + .06 * densityAt(nx, ny) + .02 * vnoise(nx * 6, ny * 6, t * .05) + fl.boost);
+    return { v, total: f.sum, flare: fl, src: f.out.filter(c => c[1] > .01).sort((a, b) => b[1] - a[1]) };
+  }
+  // Thresholds tuned so the land is roughly 20% Faint, 40% Weak, 25% Steady, 10% Strong, 5% Surging
+  const fieldValue = f => 1 - Math.exp(-1.6 * f);
+  const LEVELS = [
+    [14, "Faint", -2, "Barely a whisper. Only sorcerers would sense it."],
+    [40, "Weak", -1, "Enough for small cantrips and bardic tricks."],
+    [60, "Steady", 0, "A reliable flow for trained mages."],
+    [72, "Strong", 1, "Spells come easily. Old artefacts may stir."],
+    [101, "Surging", 2, "Raw power. Rituals are possible, and dangerous."]
+  ];
+  const fmtMod = m => m > 0 ? "+" + m : m < 0 ? "\u2212" + Math.abs(m) : "\u00b10";
+  { const ol = document.getElementById("pLegend");
+    LEVELS.forEach(l => { const li = document.createElement("li"); li.dataset.level = l[1];
+      li.innerHTML = "<span></span><b></b>"; li.querySelector("span").textContent = l[1]; li.querySelector("b").textContent = fmtMod(l[2]); ol.appendChild(li); }); }
+  const levelOf = pct => LEVELS.find(l => pct < l[0]);
+
+  function probeTick() {
+    if (!probe) return;
+    const t = performance.now() / 1000, r = measure(probe.x, probe.y, t);
+    probe.v = r.v;
+    probeHist.push(r.v); if (probeHist.length > 240) probeHist.shift();
+    const pct = Math.round(r.v * 100), lvl = levelOf(pct);
+    probe.label = lvl[1] + " " + fmtMod(lvl[2]);
+    $("pVal").textContent = pct;
+    $("pLvl").textContent = lvl[1];
+    $("pMod").textContent = fmtMod(lvl[2]);
+    $("pLvlText").textContent = lvl[3];
+    document.querySelectorAll("#pLegend li").forEach(li => li.classList.toggle("on", li.dataset.level === lvl[1]));
+    const past = probeHist[Math.max(0, probeHist.length - 21)], d = r.v - past;
+    $("pTrend").textContent = probeHist.length < 8 ? "Measuring" : d > .02 ? "Rising" : d < -.02 ? "Falling" : "Holding";
+    if (r.total < .03) $("pSrc").textContent = "No hotspot reaches this far. Only stray currents pass through.";
+    else {
+      const sh = c => Math.round(c[1] / r.total * 100) + "%";
+      const [a, b] = r.src;
+      $("pSrc").textContent = "Drawn mostly from " + a[0].name + " (" + sh(a) + ")" + (b && b[1] / r.total > .1 ? " and " + b[0].name + " (" + sh(b) + ")." : ".");
+    }
+    if (r.flare.boost > .05) $("pSrc").textContent += " A glimpse of stronger Feyline lifts this spot (+" + Math.round(r.flare.boost * 100) + ") until about " + hhmm(r.flare.top.end) + ".";
+    drawSpark();
+    if (reduced) render(t);
+  }
+  function drawSpark() {
+    const c = $("pSpark"), w = c.clientWidth, h = 44, dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (!w) return;
+    if (c.width !== Math.round(w * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
+    const g = c.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+    const col = "rgb(" + feyRgb(performance.now() / 1000).join(",") + ")";
+    g.strokeStyle = "rgba(167,165,148,0.25)"; g.lineWidth = 1;
+    [.25, .5, .75].forEach(q => { g.beginPath(); g.moveTo(0, h - q * h + .5); g.lineTo(w, h - q * h + .5); g.stroke(); });
+    const n = probeHist.length; if (n < 2) return;
+    const X = i => (i + 240 - n) / 239 * w, Y = v => h - 2 - v * (h - 4);
+    g.beginPath(); g.moveTo(X(0), h);
+    probeHist.forEach((v, i) => g.lineTo(X(i), Y(v)));
+    g.lineTo(X(n - 1), h); g.closePath();
+    g.globalAlpha = .18; g.fillStyle = col; g.fill(); g.globalAlpha = 1;
+    g.beginPath(); probeHist.forEach((v, i) => i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v)));
+    g.strokeStyle = col; g.lineWidth = 1.5; g.stroke();
+    g.beginPath(); g.arc(X(n - 1), Y(probeHist[n - 1]), 3, 0, Math.PI * 2); g.fillStyle = col; g.fill();
+  }
+  let heatPaths = [];
+  function contourPath(vals, gw, gh, T) {
+    const path = new Path2D(), sx = W / gw, sy = H / gh;
+    const P = (gx, gy) => [(gx + .5) * sx, (gy + .5) * sy];
+    const seg = (p, q) => { path.moveTo(p[0], p[1]); path.lineTo(q[0], q[1]); };
+    for (let j = 0; j < gh - 1; j++) for (let i = 0; i < gw - 1; i++) {
+      const a = vals[j * gw + i], b = vals[j * gw + i + 1], c = vals[(j + 1) * gw + i + 1], d = vals[(j + 1) * gw + i];
+      const idx = (a > T ? 8 : 0) | (b > T ? 4 : 0) | (c > T ? 2 : 0) | (d > T ? 1 : 0);
+      if (idx === 0 || idx === 15) continue;
+      const top = () => P(i + (T - a) / (b - a), j), right = () => P(i + 1, j + (T - b) / (c - b));
+      const bottom = () => P(i + (T - d) / (c - d), j + 1), left = () => P(i, j + (T - a) / (d - a));
+      switch (idx) {
+        case 1: case 14: seg(left(), bottom()); break;
+        case 2: case 13: seg(bottom(), right()); break;
+        case 3: case 12: seg(left(), right()); break;
+        case 4: case 11: seg(top(), right()); break;
+        case 5: seg(top(), right()); seg(left(), bottom()); break;
+        case 6: case 9: seg(top(), bottom()); break;
+        case 7: case 8: seg(left(), top()); break;
+        case 10: seg(left(), top()); seg(bottom(), right()); break;
+      }
+    }
+    return path;
+  }
+  function buildHeat(t) {
+    heatT = t;
+    const gw = 200, gh = Math.max(8, Math.round(200 * H / W));
+    if (hm.width !== gw || hm.height !== gh) { hm.width = gw; hm.height = gh; }
+    const vals = new Float32Array(gw * gh);
+    for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
+      const x = (i + .5) / gw, y = (j + .5) / gh;
+      vals[j * gw + i] = Math.min(1, .92 * fieldValue(fieldContribs(x, y).sum) + flareAt(x, y).boost);
+    }
+    const img = hctx.createImageData(gw, gh), d = img.data, rgb = feyRgb(t);
+    for (let k = 0; k < gw * gh; k++) {
+      const v = vals[k], e = v * v * (3 - 2 * v); // soft ramp: dark lowlands, glowing cores
+      d[k * 4] = rgb[0]; d[k * 4 + 1] = rgb[1]; d[k * 4 + 2] = rgb[2];
+      d[k * 4 + 3] = Math.round(18 + e * 200);
+    }
+    hctx.putImageData(img, 0, 0);
+    heatPaths = LEVELS.slice(0, 4).map(l => contourPath(vals, gw, gh, l[0] / 100));
+  }
+  function drawHeat(rgbS) {
+    ctx.save();
+    ctx.globalCompositeOperation = "source-over";
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.globalAlpha = .85;
+    ctx.drawImage(hm, 0, 0, W, H);
+    ctx.globalAlpha = 1;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    heatPaths.forEach((path, k) => {
+      ctx.setLineDash(k === 0 ? [3, 5] : []);
+      ctx.lineWidth = 5; ctx.strokeStyle = `rgba(${rgbS},${(.06 + .03 * k).toFixed(2)})`; ctx.stroke(path);
+      ctx.lineWidth = k >= 2 ? 1.5 : 1.1; ctx.strokeStyle = `rgba(${rgbS},${(.45 + .15 * k).toFixed(2)})`; ctx.stroke(path);
+    });
+    ctx.setLineDash([]);
+    // key
+    const fs = 11, pad = 8, rowH = 16, w = 92, h = pad * 2 + rowH * 5;
+    const x0 = W - w - 10, y0 = H - h - 10;
+    ctx.fillStyle = "rgba(14,21,32,0.82)"; ctx.fillRect(x0, y0, w, h);
+    ctx.strokeStyle = "rgba(167,165,148,0.3)"; ctx.lineWidth = 1; ctx.strokeRect(x0 + .5, y0 + .5, w - 1, h - 1);
+    ctx.font = `500 ${fs}px "Alegreya Sans SC", "Gill Sans", sans-serif`; ctx.textBaseline = "middle";
+    [...LEVELS].reverse().forEach((l, i) => {
+      const y = y0 + pad + rowH * i + rowH / 2, lv = 4 - i, mid = [.07, .27, .5, .66, .85][lv];
+      const e = mid * mid * (3 - 2 * mid);
+      ctx.fillStyle = `rgba(${rgbS},${(.1 + e * .85).toFixed(2)})`; ctx.fillRect(x0 + pad, y - 5, 14, 10);
+      ctx.fillStyle = "#e9dfc8"; ctx.textAlign = "left"; ctx.fillText(l[1], x0 + pad + 20, y);
+      ctx.textAlign = "right"; ctx.fillText(fmtMod(l[2]), x0 + w - pad, y);
+    });
+    ctx.restore();
+  }
+
+  function drawProbe(t, rgbS) {
+    if (!probe) return;
+    const x = probe.x * W, y = probe.y * H, v = probe.v || 0;
+    const ring = (t * (.4 + v * 1.6)) % 1;
+    ctx.globalAlpha = (1 - ring) * .8;
+    ctx.beginPath(); ctx.arc(x, y, 10 + ring * 34, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(${rgbS},1)`; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "#e9dfc8"; ctx.lineWidth = 1.3;
+    ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x - 16, y); ctx.lineTo(x - 5, y); ctx.moveTo(x + 5, y); ctx.lineTo(x + 16, y);
+    ctx.moveTo(x, y - 16); ctx.lineTo(x, y - 5); ctx.moveTo(x, y + 5); ctx.lineTo(x, y + 16);
+    ctx.stroke();
+    if (probe.label) {
+      ctx.font = `500 13px "Alegreya Sans SC", "Gill Sans", sans-serif`;
+      const tw = ctx.measureText(probe.label).width, right = probe.x < .8;
+      const bx = right ? x + 20 : x - 20 - tw - 12, by = y - 30;
+      ctx.fillStyle = "rgba(14,21,32,0.88)"; ctx.fillRect(bx, by, tw + 12, 20);
+      ctx.strokeStyle = `rgba(${rgbS},0.8)`; ctx.lineWidth = 1; ctx.strokeRect(bx + .5, by + .5, tw + 11, 19);
+      ctx.fillStyle = "#e9dfc8"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(probe.label, bx + 6, by + 10);
+    }
+  }
+  function setMeasuring(on) {
+    measuring = on;
+    if (on && tool) setTool(tool);
+    $("measureBtn").setAttribute("aria-pressed", String(on));
+    if (on && editing) $("editBtn").click();
+    $("hint").textContent = on ? "Click anywhere on the map to measure the Feyline there. Drag the probe to move it." : DEFAULT_HINT;
+  }
+
+
+  // ---------- Party & travel ----------
+  const LS_PARTY = "feyline.party.v1", TRAVEL_START = 8, TRAVEL_END = 16, STEP_H = 2;
+  let party = null, route = [], daysCross = 8, tool = null, draggingParty = false, travel = [];
+  try {
+    const sv = JSON.parse(store.get(LS_PARTY) || "null");
+    if (sv) { party = sv.party || null; route = Array.isArray(sv.route) ? sv.route : []; daysCross = +sv.daysCross || 8; }
+  } catch (e) {}
+  const saveParty = () => store.set(LS_PARTY, JSON.stringify({ party, route, daysCross }));
+  const legLen = (a, b) => Math.hypot(b.x - a.x, (b.y - a.y) * H / W); // in map widths
+
+  function setTool(name) {
+    tool = tool === name ? null : name;
+    if (tool && measuring) setMeasuring(false);
+    if (tool && editing) $("editBtn").click();
+    $("partyBtn").setAttribute("aria-pressed", String(tool === "party"));
+    $("routeBtn").setAttribute("aria-pressed", String(tool === "route"));
+    $("addSpotBtn").setAttribute("aria-pressed", String(tool === "addspot"));
+    $("hint").textContent = tool === "party" ? "Click the map to place the party. Drag the banner to move it."
+      : tool === "addspot" ? "Click the map where the new hotspot should be."
+      : tool === "route" ? (party ? "Click the map to add stops to the route. Click Plan route again when you are done." : "Click the map to place the party first, then click to add stops.")
+      : DEFAULT_HINT;
+  }
+
+  function computeTravel() {
+    travel = [];
+    const box = $("travel");
+    if (!party || !route.length) { box.hidden = true; drawTravelLog(); return; }
+    box.hidden = false;
+    const pts = [party, ...route], cum = [0];
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + legLen(pts[i - 1], pts[i]));
+    const total = cum[cum.length - 1], travelH = total * daysCross * (TRAVEL_END - TRAVEL_START);
+    const pointAt = d => {
+      let i = 1; while (i < cum.length - 1 && cum[i] < d) i++;
+      const a = pts[i - 1], b = pts[i], u = cum[i] > cum[i - 1] ? (d - cum[i - 1]) / (cum[i] - cum[i - 1]) : 0;
+      return { x: a.x + (b.x - a.x) * u, y: a.y + (b.y - a.y) * u };
+    };
+    const mk = (doneH, ms, kind) => {
+      const d = travelH ? doneH / travelH * total : 0, pos = pointAt(d), f = fieldAtTime(pos.x, pos.y, ms);
+      const pct = Math.round(f.v * 100), lvl = LEVELS.findIndex(l => pct < l[0]);
+      return { ms, d, x: pos.x, y: pos.y, pct, lvl, flare: f.flare, kind };
+    };
+    let ms = nowMs();
+    if (hourOf(ms) < TRAVEL_START) ms = startOfDay(ms) + TRAVEL_START * HOUR;
+    else if (hourOf(ms) >= TRAVEL_END) ms = startOfDay(ms, 1) + TRAVEL_START * HOUR;
+    travel.push(mk(0, ms, "depart"));
+    let done = 0, guard = 0;
+    while (done < travelH - 1e-6 && guard++ < 2000) {
+      const left = TRAVEL_END - hourOf(ms);
+      if (left <= 1e-6) { travel[travel.length - 1].kind = "camp"; ms = startOfDay(ms, 1) + TRAVEL_START * HOUR; continue; }
+      const h = Math.min(STEP_H, travelH - done, left);
+      ms += h * HOUR; done += h;
+      travel.push(mk(done, ms, ""));
+    }
+    if (travel.length > 1) travel[travel.length - 1].kind = "arrive";
+    travel.cum = cum;
+    drawTravelLog(travelH);
+  }
+
+  function drawTravelLog(travelH) {
+    const log = $("travelLog"); log.textContent = "";
+    if (!travel.length) { $("travelSum").textContent = ""; return; }
+    const first = travel[0], last = travel[travel.length - 1];
+    const days = new Set(travel.map(e => startOfDay(e.ms))).size;
+    const lv = travel.map(e => e.lvl), worst = Math.min(...lv), best = Math.max(...lv);
+    const glimpses = travel.filter(e => e.flare).length;
+    const lvlTxt = i => LEVELS[i][1] + " " + fmtMod(LEVELS[i][2]);
+    $("travelSum").textContent = `${days} ${days === 1 ? "day" : "days"} on the road (${Math.round(travelH)} hours of travel), arriving ${dayLabel(last.ms)} at ${hhmm(last.ms)}. Weakest ${lvlTxt(worst)}, strongest ${lvlTxt(best)}` + (glimpses ? `, with a glimpse on ${glimpses} ${glimpses === 1 ? "stretch" : "stretches"}.` : ".");
+    let dayBox = null, curDay = null, dayN = 0;
+    travel.forEach(e => {
+      const dk = startOfDay(e.ms);
+      if (dk !== curDay) {
+        curDay = dk; dayN++;
+        dayBox = document.createElement("div"); dayBox.className = "tday";
+        const h = document.createElement("div"); h.className = "tdh"; h.textContent = "Day " + dayN + " · " + dayLabel(e.ms);
+        dayBox.appendChild(h); log.appendChild(dayBox);
+      }
+      const b = document.createElement("button"); b.type = "button"; b.className = "trow";
+      const tag = { depart: "Set out", camp: "Camp", arrive: "Arrive" }[e.kind];
+      b.innerHTML = `<span class="tt"></span><span class="tp"></span><span class="tl"></span>`;
+      b.querySelector(".tt").textContent = hhmm(e.ms);
+      const tp = b.querySelector(".tp");
+      if (tag) { const i = document.createElement("i"); i.textContent = tag + " · "; tp.appendChild(i); }
+      tp.appendChild(document.createTextNode(placeName(e.x, e.y)));
+      if (e.flare) { const g = document.createElement("b"); g.textContent = " ✦"; g.title = "A glimpse lifts the Feyline here"; tp.appendChild(g); }
+      const tl = b.querySelector(".tl"); tl.textContent = lvlTxt(e.lvl); tl.classList.add("l" + e.lvl);
+      b.title = "Move the party here and set the clock to " + dayLabel(e.ms) + ", " + hhmm(e.ms);
+      b.addEventListener("click", () => jumpTo(e));
+      dayBox.appendChild(b);
+    });
+  }
+
+  function jumpTo(e) {
+    const cum = travel.cum || [0];
+    route = route.filter((_, i) => cum[i + 1] > e.d + 1e-9);
+    party = { x: e.x, y: e.y };
+    clock.campaign = true; clock.running = false; clock.base = e.ms; clock.anchor = performance.now();
+    saveParty(); saveClock(); onClockJump();
+  }
+
+  function partyTick() {
+    const box = $("party");
+    if (!party) { box.hidden = true; return; }
+    box.hidden = false;
+    const r = measure(party.x, party.y, performance.now() / 1000);
+    const pct = Math.round(r.v * 100), lvl = levelOf(pct);
+    $("partyLoc").textContent = placeName(party.x, party.y).replace(/^./, c => c.toUpperCase());
+    $("partyVal").textContent = pct;
+    $("partyLvl").textContent = lvl[1];
+    $("partyMod").textContent = fmtMod(lvl[2]);
+    party.label = lvl[1] + " " + fmtMod(lvl[2]);
+    $("partyNote").textContent = r.flare.boost > .05
+      ? "A glimpse lifts the Feyline here (+" + Math.round(r.flare.boost * 100) + ") until about " + hhmm(r.flare.top.end) + "."
+      : r.total < .03 ? "Far from any hotspot." : "Nearest pull: " + r.src[0][0].name + ".";
+  }
+
+  function drawParty(rgbS) {
+    if (party && route.length) {
+      const pts = [party, ...route];
+      ctx.save();
+      ctx.lineCap = "round"; ctx.lineJoin = "round";
+      ctx.beginPath(); pts.forEach((p, i) => i ? ctx.lineTo(p.x * W, p.y * H) : ctx.moveTo(p.x * W, p.y * H));
+      ctx.lineWidth = 4; ctx.strokeStyle = "rgba(14,21,32,0.75)"; ctx.stroke();
+      ctx.setLineDash([7, 6]); ctx.lineWidth = 1.6; ctx.strokeStyle = "#e9dfc8"; ctx.stroke();
+      ctx.setLineDash([]);
+      route.forEach(p => { ctx.beginPath(); ctx.arc(p.x * W, p.y * H, 3.5, 0, Math.PI * 2); ctx.fillStyle = "#e9dfc8"; ctx.fill(); ctx.strokeStyle = "#0e1520"; ctx.lineWidth = 1.2; ctx.stroke(); });
+      // camps, numbered by night
+      let n = 0;
+      ctx.font = `500 10px "Alegreya Sans SC", "Gill Sans", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      travel.forEach(e => {
+        if (e.kind !== "camp") return; n++;
+        const x = e.x * W, y = e.y * H;
+        ctx.beginPath(); ctx.moveTo(x, y - 7); ctx.lineTo(x + 7, y + 5); ctx.lineTo(x - 7, y + 5); ctx.closePath();
+        ctx.fillStyle = "#0e1520"; ctx.fill(); ctx.strokeStyle = `rgba(${rgbS},1)`; ctx.lineWidth = 1.3; ctx.stroke();
+        ctx.fillStyle = "#e9dfc8"; ctx.fillText(String(n), x, y + 1);
+      });
+      ctx.restore();
+    }
+    if (party) {
+      const x = party.x * W, y = party.y * H;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fillStyle = `rgba(${rgbS},1)`; ctx.fill();
+      ctx.strokeStyle = "#0e1520"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y - 2); ctx.lineTo(x, y - 26); ctx.strokeStyle = "#0e1520"; ctx.lineWidth = 3.5; ctx.stroke();
+      ctx.strokeStyle = "#e9dfc8"; ctx.lineWidth = 1.6; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 1, y - 26); ctx.lineTo(x + 17, y - 21); ctx.lineTo(x + 1, y - 15); ctx.closePath();
+      ctx.fillStyle = "#e9dfc8"; ctx.fill(); ctx.strokeStyle = `rgba(${rgbS},1)`; ctx.lineWidth = 1.2; ctx.stroke();
+      if (party.label) {
+        ctx.font = `500 12px "Alegreya Sans SC", "Gill Sans", sans-serif`;
+        const tw = ctx.measureText(party.label).width, bx = x + 21, by = y - 30;
+        ctx.fillStyle = "rgba(14,21,32,0.88)"; ctx.fillRect(bx, by, tw + 10, 18);
+        ctx.fillStyle = "#e9dfc8"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(party.label, bx + 5, by + 9);
+      }
+      ctx.restore();
+    }
+  }
+
+  // ---------- Clock UI ----------
+  const pad2 = n => String(n).padStart(2, "0");
+  let lastDayKey = startOfDay(nowMs());
+  function renderClock() {
+    const ms = nowMs();
+    const tt = turning(ms);
+    $("cDate").textContent = "Year " + tt.year + " of the Fourth Age";
+    $("cTime").textContent = dayLabel(ms) + " · " + hhmm(ms);
+    $("cReal").setAttribute("aria-checked", String(!clock.campaign));
+    $("cCamp").setAttribute("aria-checked", String(clock.campaign));
+    $("cCtl").hidden = !clock.campaign;
+    $("cPlay").textContent = clock.running ? "Pause" : "Run";
+    $("cPlay").setAttribute("aria-pressed", String(clock.running));
+    const ae = document.activeElement;
+    if (!(ae && ae.closest && ae.closest(".cset"))) {
+      $("cDay").value = tt.day || 1; $("cDay").disabled = tt.kind !== "month";
+      $("cMonth").value = tt.entry; $("cYear").value = tt.year; $("cHour").value = hhmm(ms);
+    }
+  }
+  function onClockJump() {
+    info = seasonInfo(nowMs());
+    lastDayKey = startOfDay(nowMs());
+    updateSeasonCard(); retone(); updateFlares();
+    heatT = -1; probeHist = [];
+    computeTravel(); partyTick(); renderClock();
+    if (reduced) { warm(120); render(performance.now() / 1000); }
+  }
+  function clockTick() {
+    renderClock();
+    const dk = startOfDay(nowMs());
+    if (dk !== lastDayKey) { lastDayKey = dk; info = seasonInfo(nowMs()); updateSeasonCard(); retone(); }
+  }
+
+  // ---------- Panel ----------
+  const $ = id => document.getElementById(id);
+
+  function updateSeasonCard() {
+    const se = effectiveSeason(), S = SEASONS[se], ms = nowMs(), t = info.t;
+    document.documentElement.style.setProperty("--fey", S.color);
+    $("readingDate").textContent = mode === "live" ? "Reading for " + fmtLong(ms) : "Preview";
+    const lore = TURNING_LORE[t.name];
+    if (mode !== "live") {
+      $("seasonName").textContent = se === "convergence" ? "A Turning day" : S.label;
+      $("seasonBoon").textContent = S.boon;
+      $("monthNote").textContent = "";
+      $("seasonDial").style.width = "100%";
+      $("seasonMeta").textContent = "Showing how the Feyline would look in this season.";
+    } else if (info.convergence) {
+      $("seasonName").textContent = t.name;
+      $("seasonBoon").textContent = lore;
+      $("monthNote").textContent = "The currents converge. Ritual magic is at its peak.";
+      $("seasonDial").style.width = "100%";
+      $("seasonMeta").textContent = `${info.next.name} in ${info.daysToNext} days.`;
+    } else if (info.nameless) {
+      $("seasonName").textContent = t.name;
+      $("seasonBoon").textContent = lore;
+      $("monthNote").textContent = "The Feyline behaves as in deep winter.";
+      $("seasonDial").style.width = "100%";
+      $("seasonMeta").textContent = "First Thaw tomorrow.";
+    } else {
+      $("seasonName").textContent = S.label;
+      $("seasonBoon").textContent = S.boon;
+      $("monthNote").innerHTML = "";
+      const b = document.createElement("b"); b.textContent = t.name;
+      $("monthNote").append(b, ": " + MONTH_LORE[t.name] + ".");
+      $("seasonDial").style.width = Math.round(info.day / info.length * 100) + "%";
+      $("seasonMeta").textContent = `Day ${info.day} of ${info.length}. ${info.next.name} in ${info.daysToNext} ${info.daysToNext === 1 ? "day" : "days"}.`;
+    }
+    $("seasonSel").value = mode;
+    buildRank();
+    showDetail();
+  }
+
+  function ranked() { return [...spots].sort((a, b) => baseStrength(b) - baseStrength(a)); }
+
+  function buildRank() {
+    const ol = $("rank"); ol.textContent = "";
+    ranked().forEach(s => {
+      const li = document.createElement("li");
+      const b = document.createElement("button"); b.type = "button"; b.dataset.id = s.id;
+      b.innerHTML = `<span class="rn"></span><span class="bar"><span></span></span><span class="pct"></span>`;
+      b.querySelector(".rn").textContent = s.name;
+      b.addEventListener("click", () => select(s.id));
+      li.appendChild(b); ol.appendChild(li);
+    });
+    tickRank();
+  }
+  function tickRank() {
+    document.querySelectorAll("#rank button").forEach(b => {
+      const s = spots.find(x => x.id === b.dataset.id);
+      if (!s) return;
+      const v = lastStrengths.get(s.id) ?? strengthAt(s, nowMs(), effectiveSeason());
+      b.querySelector(".bar span").style.width = Math.round(v * 100) + "%";
+      b.querySelector(".pct").textContent = s.off ? "off" : Math.round(v * 100);
+      b.classList.toggle("off", !!s.off);
+      b.setAttribute("aria-current", String(selected === s.id));
+    });
+  }
+
+  let editingSpot = null;
+  function showDetail() {
+    const s = spots.find(x => x.id === selected) || ranked()[0];
+    if (!s) return;
+    const isTop = !selected;
+    $("detail").querySelector("h3").textContent = isTop ? "Strongest now" : (s.custom ? "Your hotspot" : "Hotspot");
+    $("editSpot").hidden = isTop || editingSpot === s.id;
+    $("dName").textContent = s.name;
+    $("dKind").textContent = s.kind + (s.power > 1 ? " · major" : s.power < 1 ? " · minor" : "") + (s.off ? " · inactive" : "");
+    $("dText").textContent = (s.text || "No description yet.").replace("{age}", turning(nowMs()).year);
+    $("dFav").innerHTML = s.fav
+      ? `Favoured in <b>${SEASONS[s.fav].label.toLowerCase()}</b>.`
+      : `Holds <b>steady</b> through every season.`;
+    const ed = editingSpot === s.id;
+    $("spotForm").hidden = !ed; $("dView").hidden = ed;
+    if (ed && !$("spotForm").contains(document.activeElement)) {
+      $("sfName").value = s.name; $("sfKind").value = s.kind; $("sfText").value = s.text || "";
+      $("sfFav").value = s.fav || ""; $("sfPow").value = String(s.power > 1 ? 1.35 : s.power < 1 ? .6 : 1);
+      $("sfOn").checked = !s.off;
+      $("sfRemove").textContent = s.custom ? "Remove hotspot" : "Restore original";
+    }
+  }
+  function saveSpots() {
+    const added = [], edits = {};
+    spots.forEach(s => {
+      if (s.custom) { added.push({ id: s.id, name: s.name, kind: s.kind, text: s.text, fav: s.fav, power: s.power, off: s.off, x: +s.x.toFixed(4), y: +s.y.toFixed(4) }); return; }
+      const d = DEFAULT_SPOTS.find(x => x.id === s.id), e = {};
+      EDITABLE.forEach(k => { const dv = k === "power" ? 1 : k === "off" ? false : d[k]; if (s[k] !== dv) e[k] = s[k]; });
+      if (Object.keys(e).length) edits[s.id] = e;
+    });
+    store.set(LS_SPOTS, JSON.stringify({ added, edits }));
+    store.set(LS_POS, JSON.stringify(spots.filter(s => !s.custom).map(s => ({ id: s.id, x: +s.x.toFixed(4), y: +s.y.toFixed(4) }))));
+  }
+  function spotsChanged() {
+    flareCache.clear(); rebuildGraph(); heatT = -1;
+    parts.forEach(p => { if (!p.target.startsWith("@") && !p.target.startsWith("*") && (!spotById.has(p.target) || spotById.get(p.target).off)) p.target = nextTarget(""); });
+    saveSpots(); buildRank(); showDetail(); updateFlares(); computeTravel();
+    if (reduced) render(performance.now() / 1000);
+  }
+  function openEditor(id) { editingSpot = id; selected = id; showDetail(); tickRank(); $("sfName").focus(); }
+  function closeEditor() { editingSpot = null; showDetail(); }
+
+  function select(id) {
+    selected = selected === id ? null : id;
+    if (editingSpot && editingSpot !== selected) editingSpot = null;
+    showDetail(); tickRank();
+    if (reduced) render(performance.now() / 1000);
+  }
+
+  // ---------- Interaction ----------
+  function hit(ev) {
+    const r = cv.getBoundingClientRect();
+    const x = ev.clientX - r.left, y = ev.clientY - r.top;
+    let best = null, bd = 18;
+    spots.forEach(s => { const d = Math.hypot(s.x * W - x, s.y * H - y); if (d < bd) { bd = d; best = s; } });
+    return { spot: best, nx: x / W, ny: y / H };
+  }
+  let dragging = null;
+  cv.addEventListener("pointerdown", ev => {
+    const h = hit(ev);
+    if (tool === "party" || (tool === "route" && !party)) {
+      party = { x: clamp01(h.nx), y: clamp01(h.ny) }; draggingParty = tool === "party";
+      if (draggingParty) cv.setPointerCapture(ev.pointerId);
+      saveParty(); computeTravel(); partyTick();
+      if (tool === "route") setTool("route"), setTool("route"); // refresh the hint
+      return;
+    }
+    if (tool === "route") { route.push({ x: clamp01(h.nx), y: clamp01(h.ny) }); saveParty(); computeTravel(); return; }
+    if (tool === "addspot") {
+      const ns = { id: "gm" + Date.now().toString(36), name: "New hotspot", kind: "Hotspot", text: "", fav: null, power: 1, off: false, x: clamp01(h.nx), y: clamp01(h.ny), custom: true };
+      initSpot(ns); spots.push(ns); setTool("addspot"); spotsChanged(); openEditor(ns.id);
+      $("hint").textContent = "Hotspot added. Name it and set its season and power in the panel. Drag it with Move hotspots.";
+      return;
+    }
+    if (measuring) {
+      probe = { x: clamp01(h.nx), y: clamp01(h.ny) }; probeHist = []; draggingProbe = true;
+      cv.setPointerCapture(ev.pointerId); $("probe").hidden = false; probeTick(); return;
+    }
+    if (editing && h.spot) { dragging = h.spot; selected = h.spot.id; cv.setPointerCapture(ev.pointerId); showDetail(); return; }
+    if (h.spot) select(h.spot.id);
+  });
+  cv.addEventListener("pointermove", ev => {
+    if (draggingProbe) { const h = hit(ev); probe.x = clamp01(h.nx); probe.y = clamp01(h.ny); probeHist = []; return; }
+    if (draggingParty) { const h = hit(ev); party.x = clamp01(h.nx); party.y = clamp01(h.ny); return; }
+    if (tool) { cv.style.cursor = "crosshair"; return; }
+    if (measuring) { cv.style.cursor = "crosshair"; return; }
+    if (dragging) {
+      const h = hit(ev);
+      dragging.x = Math.min(.98, Math.max(.02, h.nx)); dragging.y = Math.min(.98, Math.max(.02, h.ny));
+      if (reduced) render(performance.now() / 1000);
+      return;
+    }
+    cv.style.cursor = hit(ev).spot ? (editing ? "grab" : "pointer") : "default";
+  });
+  const endDrag = () => {
+    draggingProbe = false;
+    if (draggingParty) { draggingParty = false; saveParty(); computeTravel(); partyTick(); }
+    if (!dragging) return;
+    dragging = null;
+    spotsChanged();
+    $("hint").textContent = "Position saved in this browser. Use Copy hotspots to keep them.";
+  };
+  cv.addEventListener("pointerup", endDrag);
+  cv.addEventListener("pointercancel", endDrag);
+
+  $("seasonSel").addEventListener("change", () => { mode = $("seasonSel").value; updateSeasonCard(); retone(); if (reduced) { warm(240); render(performance.now() / 1000); } });
+
+  $("editBtn").addEventListener("click", () => {
+    editing = !editing;
+    if (editing && measuring) setMeasuring(false);
+    if (editing && tool) setTool(tool);
+    $("editBtn").setAttribute("aria-pressed", String(editing));
+    box.classList.toggle("editing", editing);
+    $("hint").textContent = editing ? "Drag the hotspots onto their real places. Click Move hotspots again when you are done." : DEFAULT_HINT;
+    if (reduced) render(performance.now() / 1000);
+  });
+
+  $("copyBtn").addEventListener("click", () => {
+    const json = JSON.stringify(spots.map(s => ({ id: s.id, name: s.name, kind: s.kind, x: +s.x.toFixed(4), y: +s.y.toFixed(4), fav: s.fav || null, power: s.power || 1, active: !s.off, text: s.text, ...(s.custom ? { added: true } : {}) })), null, 2);
+    const fallback = () => { const ta = $("posOut"); ta.hidden = false; ta.value = json; ta.focus(); ta.select(); $("hint").textContent = "Copying was blocked here. The hotspots are selected below, so copy them manually."; };
+    try {
+      navigator.clipboard.writeText(json).then(() => { $("hint").textContent = "Hotspots copied. Paste them to Claude to bake them into the site."; }, fallback);
+    } catch (e) { fallback(); }
+  });
+
+  $("resetBtn").addEventListener("click", () => {
+    spots.forEach(s => { const d = DEFAULT_SPOTS.find(x => x.id === s.id); s.x = d.x; s.y = d.y; });
+    store.del(LS_POS); store.del(LS_MAP);
+    useImage(DEFAULT_MAP, false, true); $("posOut").hidden = true;
+    probe = null; $("probe").hidden = true; setMeasuring(false);
+    selected = null; mode = "live"; updateSeasonCard(); retone(); drawTerrain();
+    spotsChanged();
+    $("hint").textContent = "Back to the Fourth Age map and the original hotspot positions. Your own hotspots and edits are kept.";
+    if (reduced) render(performance.now() / 1000);
+  });
+
+  const DEFAULT_MAP = "earlsdale-map.webp";
+  function useImage(src, remember, quiet) {
+    const img = new Image();
+    img.onload = () => {
+      mapImg = img; drawTerrain();
+      $("mapTag").hidden = !!quiet;
+      $("mapTag").textContent = "Test map";
+      if (!quiet) $("hint").textContent = "Map loaded. Use Move hotspots to drag each hotspot onto its real place.";
+      if (remember && !store.set(LS_MAP, src)) $("hint").textContent += " The image is too large to remember after a reload.";
+      if (reduced) render(performance.now() / 1000);
+    };
+    img.onerror = () => { if (!quiet) $("hint").textContent = "That file could not be read as an image. Try a JPG or PNG."; };
+    img.src = src;
+  }
+  $("mapFile").addEventListener("change", ev => {
+    const f = ev.target.files && ev.target.files[0]; if (!f) return;
+    const fr = new FileReader();
+    fr.onload = () => useImage(fr.result, true);
+    fr.readAsDataURL(f);
+  });
+  const savedMap = store.get(LS_MAP);
+  if (savedMap) useImage(savedMap, false); else useImage(DEFAULT_MAP, false, true);
+
+  // ---------- Sound ----------
+  // A slowly shifting drone: seasonal chords that change every half minute or so, a filter that
+  // opens as the Feyline strengthens, voices drifting across the stereo field, and soft chimes
+  // that ring out more often when the field is strong or a glimpse is active.
+  const SCALES = {
+    spring: [0, 2, 4, 7, 9], summer: [0, 2, 4, 6, 7, 11], autumn: [0, 3, 5, 7, 10],
+    winter: [0, 2, 3, 7, 8], convergence: [0, 2, 4, 6, 8, 10]
+  };
+  const CHORDS = {
+    spring: [[0, 7, 12, 16], [5, 9, 12, 19], [-3, 4, 9, 12], [0, 7, 14, 19]],
+    summer: [[0, 7, 11, 16], [2, 6, 9, 14], [0, 4, 7, 18], [-1, 6, 11, 16]],
+    autumn: [[0, 7, 10, 15], [-2, 5, 10, 14], [-4, 3, 8, 15], [0, 3, 7, 12]],
+    winter: [[0, 7, 12, 15], [-4, 3, 8, 12], [0, 5, 7, 14], [-2, 3, 10, 15]],
+    convergence: [[0, 6, 10, 16], [2, 8, 12, 18], [0, 4, 10, 14], [-2, 4, 8, 14]]
+  };
+  const VOICE_GAIN = [.5, .3, .22, .14];
+  const semi = n => Math.pow(2, n / 12);
+  const rootFreq = () => SEASONS[effectiveSeason()].tone / 2;
+  let audio = null;
+
+  function buildAudio() {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const ac = new AC();
+    const master = ac.createGain(); master.gain.value = 0;
+    const comp = ac.createDynamicsCompressor();
+    master.connect(comp); comp.connect(ac.destination);
+    // echo with a darkening feedback loop
+    const delay = ac.createDelay(2); delay.delayTime.value = .42;
+    const fb = ac.createGain(); fb.gain.value = .38;
+    const dlp = ac.createBiquadFilter(); dlp.type = "lowpass"; dlp.frequency.value = 2200;
+    delay.connect(dlp); dlp.connect(fb); fb.connect(delay);
+    const wet = ac.createGain(); wet.gain.value = .5; dlp.connect(wet); wet.connect(master);
+    // drone
+    const filt = ac.createBiquadFilter(); filt.type = "lowpass"; filt.frequency.value = 700; filt.Q.value = .7;
+    const drone = ac.createGain(); drone.gain.value = .05;
+    filt.connect(drone); drone.connect(master);
+    const send = ac.createGain(); send.gain.value = .15; drone.connect(send); send.connect(delay);
+    const voices = VOICE_GAIN.map((gv, i) => {
+      const g = ac.createGain(); g.gain.value = gv;
+      const pan = ac.createStereoPanner ? ac.createStereoPanner() : null;
+      const oscs = [-5, 5].map((cents, k) => {
+        const o = ac.createOscillator(); o.type = i === 0 || !k ? "sine" : "triangle";
+        o.detune.value = cents + (Math.random() - .5) * 3; o.connect(g); o.start(); return o;
+      });
+      if (pan) { g.connect(pan); pan.connect(filt); } else g.connect(filt);
+      return { g, pan, oscs, ph: Math.random() * 6.28 };
+    });
+    const lfo = ac.createOscillator(); lfo.frequency.value = .05;
+    const lfoG = ac.createGain(); lfoG.gain.value = 180; lfo.connect(lfoG); lfoG.connect(filt.frequency); lfo.start();
+    return { ac, master, delay, filt, drone, voices, chordIdx: 0, nextChord: 0, on: false };
+  }
+  function applyChord(glide) {
+    if (!audio) return;
+    const set = CHORDS[effectiveSeason()], ch = set[audio.chordIdx % set.length];
+    const now = audio.ac.currentTime, r = rootFreq();
+    audio.voices.forEach((v, i) => v.oscs.forEach(o => o.frequency.setTargetAtTime(r * semi(ch[i]) * (i === 0 ? 1 : 2), now, glide)));
+  }
+  function retone() { if (audio) { audio.chordIdx = 0; applyChord(.8); } }
+  function chime(avg) {
+    const ac = audio.ac, now = ac.currentTime, sc = SCALES[effectiveSeason()];
+    const note = sc[Math.floor(Math.random() * sc.length)] + 12 * (1 + Math.floor(Math.random() * 2));
+    const f = rootFreq() * 2 * semi(note);
+    const g = ac.createGain(); g.gain.value = 0;
+    const o1 = ac.createOscillator(), o2 = ac.createOscillator(), g2 = ac.createGain();
+    o1.type = "sine"; o2.type = "triangle"; o1.frequency.value = f; o2.frequency.value = f * 2.001; g2.gain.value = .22;
+    o1.connect(g); o2.connect(g2); g2.connect(g);
+    let out = g;
+    if (ac.createStereoPanner) { const pan = ac.createStereoPanner(); pan.pan.value = (Math.random() - .5) * 1.4; g.connect(pan); out = pan; }
+    out.connect(audio.master); out.connect(audio.delay);
+    const peak = .025 + .04 * avg, dur = 2 + Math.random() * 2.5;
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(peak, now + .015 + Math.random() * .05);
+    g.gain.exponentialRampToValueAtTime(.0001, now + dur);
+    o1.start(now); o2.start(now); o1.stop(now + dur + .1); o2.stop(now + dur + .1);
+  }
+  $("soundBtn").addEventListener("click", async () => {
+    const btn = $("soundBtn");
+    try {
+      if (!audio) { audio = buildAudio(); applyChord(.01); }
+      audio.on = !audio.on;
+      const now = audio.ac.currentTime;
+      if (audio.on) { await audio.ac.resume(); audio.master.gain.setTargetAtTime(.9, audio.ac.currentTime, .6); btn.textContent = "Silence the tone"; }
+      else { audio.master.gain.setTargetAtTime(0, now, .3); btn.textContent = "Hear the tone"; }
+      btn.setAttribute("aria-pressed", String(audio.on));
+    } catch (e) {
+      $("hint").textContent = "Sound is not available in this browser.";
+    }
+  });
+  function breatheSound() {
+    if (!audio || !audio.on) return;
+    let sum = 0; lastStrengths.forEach(v => sum += v);
+    const avg = lastStrengths.size ? sum / lastStrengths.size : .5;
+    const now = audio.ac.currentTime, t = performance.now() / 1000;
+    audio.drone.gain.setTargetAtTime(.035 + .06 * avg, now, .6);
+    audio.filt.frequency.setTargetAtTime(450 + 1100 * avg + (probe ? (probe.v || 0) * 600 : 0), now, 1.2);
+    audio.voices.forEach((v, i) => {
+      if (v.pan) v.pan.pan.setTargetAtTime(Math.sin(t * .07 * (i + 1) + v.ph) * .6, now, .5);
+      v.g.gain.setTargetAtTime(VOICE_GAIN[i] * (.6 + .4 * Math.sin(t * .05 * (i + 1.3) + v.ph)), now, 1);
+    });
+    if (t > audio.nextChord) { audio.chordIdx++; applyChord(2.5); audio.nextChord = t + 22 + Math.random() * 20; }
+    const pChime = .025 + .06 * avg + (activeFlares.length ? .05 : 0) + (effectiveSeason() === "convergence" ? .06 : 0);
+    if (Math.random() < pChime) chime(avg);
+  }
+
+  // ---------- Boot ----------
+  new ResizeObserver(resize).observe(box);
+  resize();
+  updateSeasonCard();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { drawTerrain(); if (reduced) render(performance.now() / 1000); });
+  if (reduced) render(performance.now() / 1000);
+  else requestAnimationFrame(loop);
+  const DEFAULT_HINT = $("hint").textContent;
+  $("measureBtn").addEventListener("click", () => setMeasuring(!measuring));
+  $("heatBtn").addEventListener("click", () => {
+    showHeat = !showHeat; heatT = -1;
+    $("heatBtn").setAttribute("aria-pressed", String(showHeat));
+    if (reduced) render(performance.now() / 1000);
+  });
+  $("clearProbe").addEventListener("click", () => { probe = null; $("probe").hidden = true; if (reduced) render(performance.now() / 1000); });
+  $("addSpotBtn").addEventListener("click", () => { if ($("setup").open === false) $("setup").open = true; setTool("addspot"); });
+  $("editSpot").addEventListener("click", () => { if (selected) openEditor(selected); });
+  $("spotForm").addEventListener("submit", e => { e.preventDefault(); closeEditor(); });
+  const cur = () => spots.find(x => x.id === editingSpot);
+  $("sfName").addEventListener("input", () => { const s = cur(); if (!s) return; s.name = $("sfName").value.trim() || "Unnamed"; saveSpots(); buildRank(); $("dName").textContent = s.name; });
+  $("sfKind").addEventListener("input", () => { const s = cur(); if (!s) return; s.kind = $("sfKind").value.trim() || "Hotspot"; saveSpots(); });
+  $("sfText").addEventListener("input", () => { const s = cur(); if (!s) return; s.text = $("sfText").value; saveSpots(); });
+  $("sfFav").addEventListener("change", () => { const s = cur(); if (!s) return; s.fav = $("sfFav").value || null; spotsChanged(); });
+  $("sfPow").addEventListener("change", () => { const s = cur(); if (!s) return; s.power = +$("sfPow").value; spotsChanged(); });
+  $("sfOn").addEventListener("change", () => { const s = cur(); if (!s) return; s.off = !$("sfOn").checked; spotsChanged(); });
+  $("sfDone").addEventListener("click", closeEditor);
+  let removeArmed = null;
+  $("sfRemove").addEventListener("click", () => {
+    const s = cur(); if (!s) return;
+    if (removeArmed !== s.id) { removeArmed = s.id; $("sfRemove").textContent = s.custom ? "Click again to remove" : "Click again to restore"; setTimeout(() => { if (removeArmed === s.id) { removeArmed = null; showDetail(); } }, 3000); return; }
+    removeArmed = null;
+    if (s.custom) { spots = spots.filter(x => x !== s); selected = null; editingSpot = null; }
+    else { const d = DEFAULT_SPOTS.find(x => x.id === s.id); EDITABLE.forEach(k => { s[k] = k === "power" ? 1 : k === "off" ? false : d[k]; }); }
+    spotsChanged();
+  });
+  $("partyBtn").addEventListener("click", () => setTool("party"));
+  $("routeBtn").addEventListener("click", () => setTool("route"));
+  $("clearParty").addEventListener("click", () => { party = null; route = []; saveParty(); computeTravel(); partyTick(); if (reduced) render(performance.now() / 1000); });
+  $("clearRoute").addEventListener("click", () => { route = []; saveParty(); computeTravel(); if (reduced) render(performance.now() / 1000); });
+  $("undoStop").addEventListener("click", () => { route.pop(); saveParty(); computeTravel(); if (reduced) render(performance.now() / 1000); });
+  $("daysCross").value = daysCross;
+  $("daysCross").addEventListener("change", () => { const v = Math.round(+$("daysCross").value); if (v >= 1 && v <= 90) { daysCross = v; saveParty(); computeTravel(); } else $("daysCross").value = daysCross; });
+  $("cReal").addEventListener("click", () => { if (clock.campaign) { saveClock(); clock.base = nowMs(); clock.campaign = false; clock.running = false; saveClock(); onClockJump(); } });
+  $("cCamp").addEventListener("click", () => { if (!clock.campaign) { clock.campaign = true; clock.running = false; clock.anchor = performance.now(); saveClock(); onClockJump(); } });
+  $("cPlay").addEventListener("click", () => { clock.base = nowMs(); clock.anchor = performance.now(); clock.running = !clock.running; saveClock(); renderClock(); });
+  document.querySelectorAll("[data-adv]").forEach(b => b.addEventListener("click", () => {
+    clock.base = nowMs() + (+b.dataset.adv) * 60000; clock.anchor = performance.now(); saveClock(); onClockJump();
+  }));
+  CAL.forEach((c, i) => { const o = document.createElement("option"); o.value = i; o.textContent = c[0]; $("cMonth").appendChild(o); });
+  const setFromInputs = () => {
+    const e = +$("cMonth").value, y = Math.max(1, Math.round(+$("cYear").value) || 1), d = Math.round(+$("cDay").value) || 1;
+    const [hh, mm] = ($("cHour").value || "08:00").split(":").map(Number);
+    $("cDay").disabled = CAL[e][1] !== "month";
+    clock.base = worldOf(y, e, d, (hh || 0) * 60 + (mm || 0)); clock.anchor = performance.now(); saveClock(); onClockJump();
+  };
+  ["cDay", "cMonth", "cYear", "cHour"].forEach(id => $(id).addEventListener("change", setFromInputs));
+  window.addEventListener("pagehide", saveClock);
+  onClockJump();
+  setInterval(updateFlares, 5000);
+  setInterval(() => { tickRank(); breatheSound(); probeTick(); partyTick(); clockTick(); }, 250);
+  setInterval(() => { if (clock.campaign && clock.running) saveClock(); if (party && route.length && !clock.campaign) computeTravel(); }, 60000);
+})();
+</script>
+
+</body>
+</html>
